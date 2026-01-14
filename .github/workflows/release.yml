@@ -4,11 +4,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag for the release (e.g., v1.0.0)'
-        required: true
-        default: 'v1.0.0'
 
 permissions:
   contents: write
@@ -60,13 +55,6 @@ jobs:
           Copy-Item "README.md" -Destination "release/"
           Copy-Item "LICENSE" -Destination "release/"
           Compress-Archive -Path "release/*" -DestinationPath "${{ matrix.asset_name }}.zip"
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: ${{ matrix.asset_name }}
-          path: ${{ matrix.asset_name }}.zip
-          retention-days: 7
 
       - name: Upload to Release
         if: github.event_name == 'release'
