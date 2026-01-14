@@ -1,4 +1,0 @@
-// Windows Resource Script for application icon
-// This file was used to generate icon.res (pre-compiled and included in repo)
-// The icon.res is automatically used by GraalVM native-image on Windows
-IDI_ICON1 ICON "icon.ico"

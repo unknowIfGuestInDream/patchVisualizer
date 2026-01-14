@@ -35,6 +35,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
+      - name: Set up MSVC Developer Command Prompt (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Build native image (Linux)
         if: runner.os == 'Linux'
         run: mvn -Pnative gluonfx:build -DskipTests
