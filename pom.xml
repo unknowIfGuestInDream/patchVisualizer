@@ -145,8 +145,40 @@
     </build>
 
     <profiles>
+        <!-- Native profile for non-Windows platforms (Linux, macOS) -->
         <profile>
             <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${graalvm.plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <mainClass>${mainClass}</mainClass>
+                            <imageName>patchvisualizer</imageName>
+                            <buildArgs>
+                                <arg>--no-fallback</arg>
+                                <arg>-H:+ReportExceptionStackTraces</arg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Native profile for Windows with icon resource -->
+        <profile>
+            <id>native-windows</id>
             <build>
                 <plugins>
                     <plugin>
