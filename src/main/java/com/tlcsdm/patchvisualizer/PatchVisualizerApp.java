@@ -50,6 +50,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import java.io.File;
@@ -112,7 +113,12 @@ public class PatchVisualizerApp extends Application {
 
         root.setCenter(tabPane);
 
-        Scene scene = new Scene(root, 1200, 800);
+        // Calculate window size based on screen dimensions (80% of screen size)
+        javafx.geometry.Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        double width = screenBounds.getWidth() * 0.8;
+        double height = screenBounds.getHeight() * 0.8;
+
+        Scene scene = new Scene(root, width, height);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
