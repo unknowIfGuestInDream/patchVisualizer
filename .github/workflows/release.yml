@@ -11,6 +11,7 @@ permissions:
 jobs:
   build-native:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -31,7 +32,7 @@ jobs:
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: '21'
-          distribution: 'liberica'
+          distribution: 'graalvm-community'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
