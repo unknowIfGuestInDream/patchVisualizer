@@ -1,0 +1,40 @@
+diff --git a/images/logo.png b/images/logo.png
+index abc1234..def5678 100644
+Binary files a/images/logo.png and b/images/logo.png differ
+diff --git a/data/database.db b/data/database.db
+index 111aaaa..222bbbb 100644
+Binary files a/data/database.db and b/data/database.db differ
+diff --git a/resources/icon.ico b/resources/icon.ico
+new file mode 100644
+index 0000000..333cccc
+Binary files /dev/null and b/resources/icon.ico differ
+diff --git a/temp/old_backup.zip b/temp/old_backup.zip
+deleted file mode 100644
+index 444dddd..0000000
+Binary files a/temp/old_backup.zip and /dev/null differ
+diff --git a/README.md b/README.md
+index 555eeee..666ffff 100644
+--- a/README.md
++++ b/README.md
+@@ -1,10 +1,15 @@
+ # Project Name
+ 
+-A simple project description.
++An enhanced project with new features and improvements.
+ 
+ ## Installation
+ 
+-Run `npm install` to install dependencies.
++```bash
++npm install
++npm run setup
++```
+ 
+ ## Usage
+ 
+-See documentation.
++See the [documentation](./docs/README.md) for detailed usage instructions.
++
++## Screenshots
++
++![Logo](./images/logo.png)

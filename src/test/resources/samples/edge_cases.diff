@@ -1,0 +1,61 @@
+diff --git a/src/config.java b/src/config.java
+index aaa1111..bbb2222 100644
+--- a/src/config.java
++++ b/src/config.java
+@@ -1,5 +1,5 @@
+ // Configuration file
+-// Version: 1.0
++// Version: 2.0
+ 
+ public class Config {
+     // Empty lines test
+@@ -10,6 +10,7 @@ public class Config {
+     
+     
+     
++    // Added comment after empty lines
+     private static final String APP_NAME = "TestApp";
+ }
+diff --git a/whitespace.txt b/whitespace.txt
+index ccc3333..ddd4444 100644
+--- a/whitespace.txt
++++ b/whitespace.txt
+@@ -1,8 +1,8 @@
+-Line with trailing spaces   
++Line with trailing spaces removed
+ Line with tabs	here	and	here
+-    Indented with spaces
++        Indented with more spaces
+ 	Indented with tab
+-Mixed    spaces   and	tabs
++Mixed spaces and tabs normalized
+     
+ 
+-Last line with no newline
+\ No newline at end of file
++Last line with proper newline
+diff --git a/empty_to_content.txt b/empty_to_content.txt
+index 0000000..eee5555 100644
+--- a/empty_to_content.txt
++++ b/empty_to_content.txt
+@@ -0,0 +1,5 @@
++Line 1
++Line 2
++Line 3
++Line 4
++Line 5
+diff --git a/content_to_empty.txt b/content_to_empty.txt
+index fff6666..0000000 100644
+--- a/content_to_empty.txt
++++ b/content_to_empty.txt
+@@ -1,10 +0,0 @@
+-Line 1
+-Line 2
+-Line 3
+-Line 4
+-Line 5
+-Line 6
+-Line 7
+-Line 8
+-Line 9
+-Line 10

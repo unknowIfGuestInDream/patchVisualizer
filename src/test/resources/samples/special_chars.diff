@@ -1,0 +1,35 @@
+--- a/special_chars.txt
++++ b/special_chars.txt
+@@ -1,20 +1,25 @@
+ # Special Characters Test File
+ 
+-This line has "double quotes"
++This line has "modified double quotes"
+ This line has 'single quotes'
+-Line with special chars: @#$%^&*()
++Line with special chars: @#$%^&*()[]{}
+ 
+ Unicode characters:
+ - Chinese: 中文测试
+-- Japanese: 日本語テスト
++- Japanese: 日本語のテスト (modified)
+ - Korean: 한국어 테스트
++- Arabic: اختبار عربي
++- Emoji: 🎉 🚀 ✨ 💻
+ 
+ Code blocks:
+ ```java
+-public void test() {
+-    System.out.println("Hello");
++public void test(String input) {
++    if (input != null && !input.isEmpty()) {
++        System.out.println("Hello: " + input);
++    }
+ }
+ ```
+ 
+-HTML entities: &lt; &gt; &amp; &quot;
+-Backslashes: C:\Users\test\path
++HTML entities: &lt; &gt; &amp; &quot; &nbsp;
++Backslashes: C:\Users\test\path\to\file
++Forward slashes: /home/user/path/to/file
