@@ -65,6 +65,8 @@ mvn clean package -Pnative
 
 The native executable will be created in the `target` directory.
 
+**Windows Icon**: The application icon is automatically embedded into the Windows executable using the pre-compiled `icon.res` file. No additional configuration is required.
+
 ## Dependencies
 
 - [JavaFX 21](https://openjfx.io/) - UI framework
