@@ -451,9 +451,9 @@ class DiffHandleUtilTest {
         List<String> result = DiffHandleUtil.diffString(original, revised);
 
         assertNotNull(result);
-        // All lines should be additions
+        // All lines should be additions - expect exactly 50 added lines
         long addedLines = result.stream().filter(s -> s.startsWith("+") && !s.startsWith("+++")).count();
-        assertTrue(addedLines > 0);
+        assertEquals(50, addedLines, "Expected exactly 50 added lines");
     }
 
     @Test
@@ -469,9 +469,9 @@ class DiffHandleUtilTest {
         List<String> result = DiffHandleUtil.diffString(original, revised);
 
         assertNotNull(result);
-        // All lines should be deletions
+        // All lines should be deletions - expect exactly 50 deleted lines
         long deletedLines = result.stream().filter(s -> s.startsWith("-") && !s.startsWith("---")).count();
-        assertTrue(deletedLines > 0);
+        assertEquals(50, deletedLines, "Expected exactly 50 deleted lines");
     }
 
     @Test
