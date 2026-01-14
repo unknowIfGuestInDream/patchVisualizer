@@ -148,11 +148,6 @@
         <!-- Native profile for non-Windows platforms (Linux, macOS) -->
         <profile>
             <id>native</id>
-            <activation>
-                <os>
-                    <family>!windows</family>
-                </os>
-            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -184,11 +179,6 @@
         <!-- Native profile for Windows with icon resource -->
         <profile>
             <id>native-windows</id>
-            <activation>
-                <os>
-                    <family>windows</family>
-                </os>
-            </activation>
             <build>
                 <plugins>
                     <plugin>
