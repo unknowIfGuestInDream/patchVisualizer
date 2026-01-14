@@ -1,0 +1,1028 @@
+diff --git a/src/main/java/com/example/api/UserController.java b/src/main/java/com/example/api/UserController.java
+index aaa1111..bbb2222 100644
+--- a/src/main/java/com/example/api/UserController.java
++++ b/src/main/java/com/example/api/UserController.java
+@@ -1,60 +1,150 @@
+ package com.example.api;
+ 
+ import java.util.*;
++import java.util.concurrent.CompletableFuture;
++import java.time.LocalDateTime;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.http.*;
++import org.springframework.validation.annotation.Validated;
++import jakarta.validation.Valid;
++import jakarta.validation.constraints.*;
+ 
+-public class UserController {
++/**
++ * REST API Controller for User management operations.
++ * Provides endpoints for CRUD operations and user search functionality.
++ * 
++ * @author Development Team
++ * @version 2.0.0
++ */
++@RestController
++@RequestMapping("/api/v2/users")
++@Validated
++public class UserController {
+     
+-    private UserService service;
++    private final UserService userService;
++    private final UserValidator validator;
++    private final EventPublisher eventPublisher;
+     
+-    public UserController(UserService service) {
+-        this.service = service;
++    public UserController(UserService userService, 
++                         UserValidator validator,
++                         EventPublisher eventPublisher) {
++        this.userService = userService;
++        this.validator = validator;
++        this.eventPublisher = eventPublisher;
+     }
+     
+-    public User getUser(Long id) {
+-        return service.findById(id);
++    /**
++     * Retrieves a user by their unique identifier.
++     * @param id the user ID
++     * @return ResponseEntity containing the user or 404 if not found
++     */
++    @GetMapping("/{id}")
++    public ResponseEntity<UserResponse> getUser(@PathVariable @Min(1) Long id) {
++        return userService.findById(id)
++            .map(user -> ResponseEntity.ok(toResponse(user)))
++            .orElse(ResponseEntity.notFound().build());
+     }
+     
+-    public List<User> getAllUsers() {
+-        return service.findAll();
++    /**
++     * Retrieves all users with pagination support.
++     * @param page the page number (0-based)
++     * @param size the page size
++     * @param sortBy the field to sort by
++     * @return a page of users
++     */
++    @GetMapping
++    public ResponseEntity<PagedResponse<UserResponse>> getAllUsers(
++            @RequestParam(defaultValue = "0") @Min(0) int page,
++            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
++            @RequestParam(defaultValue = "createdAt") String sortBy) {
++        var users = userService.findAll(page, size, sortBy);
++        var responses = users.stream().map(this::toResponse).toList();
++        return ResponseEntity.ok(new PagedResponse<>(responses, page, size, users.getTotalElements()));
+     }
+     
+-    public void createUser(User user) {
+-        service.save(user);
++    /**
++     * Creates a new user.
++     * @param request the user creation request
++     * @return the created user with 201 status
++     */
++    @PostMapping
++    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
++        validator.validateCreateRequest(request);
++        User user = fromRequest(request);
++        User saved = userService.save(user);
++        eventPublisher.publish(new UserCreatedEvent(saved.getId(), LocalDateTime.now()));
++        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
+     }
+     
+-    public void updateUser(Long id, User user) {
+-        service.update(id, user);
++    /**
++     * Updates an existing user.
++     * @param id the user ID
++     * @param request the update request
++     * @return the updated user or 404 if not found
++     */
++    @PutMapping("/{id}")
++    public ResponseEntity<UserResponse> updateUser(
++            @PathVariable @Min(1) Long id, 
++            @Valid @RequestBody UpdateUserRequest request) {
++        return userService.findById(id)
++            .map(existing -> {
++                validator.validateUpdateRequest(request, existing);
++                updateFromRequest(existing, request);
++                User updated = userService.save(existing);
++                eventPublisher.publish(new UserUpdatedEvent(id, LocalDateTime.now()));
++                return ResponseEntity.ok(toResponse(updated));
++            })
++            .orElse(ResponseEntity.notFound().build());
+     }
+     
+-    public void deleteUser(Long id) {
+-        service.delete(id);
++    /**
++     * Deletes a user by ID.
++     * @param id the user ID
++     * @return 204 No Content on success, 404 if not found
++     */
++    @DeleteMapping("/{id}")
++    public ResponseEntity<Void> deleteUser(@PathVariable @Min(1) Long id) {
++        if (!userService.existsById(id)) {
++            return ResponseEntity.notFound().build();
++        }
++        userService.deleteById(id);
++        eventPublisher.publish(new UserDeletedEvent(id, LocalDateTime.now()));
++        return ResponseEntity.noContent().build();
+     }
+     
+-    // Simple helper methods
+-    private User findOne(Long id) {
+-        return service.findById(id);
++    /**
++     * Searches for users by various criteria.
++     * @param criteria the search criteria
++     * @return list of matching users
++     */
++    @PostMapping("/search")
++    public ResponseEntity<List<UserResponse>> searchUsers(@Valid @RequestBody SearchCriteria criteria) {
++        var users = userService.search(criteria);
++        return ResponseEntity.ok(users.stream().map(this::toResponse).toList());
+     }
+     
+-    private List<User> findMultiple(List<Long> ids) {
+-        List<User> result = new ArrayList<>();
+-        for (Long id : ids) {
+-            User user = service.findById(id);
+-            if (user != null) {
+-                result.add(user);
+-            }
+-        }
+-        return result;
++    /**
++     * Async bulk import of users.
++     * @param requests the list of users to import
++     * @return the import job ID
++     */
++    @PostMapping("/bulk-import")
++    public ResponseEntity<BulkImportResponse> bulkImport(
++            @Valid @RequestBody List<CreateUserRequest> requests) {
++        String jobId = userService.startBulkImport(requests);
++        return ResponseEntity.accepted()
++            .body(new BulkImportResponse(jobId, requests.size(), "PENDING"));
+     }
+     
+-    // Additional methods
+-    private boolean exists(Long id) {
+-        return service.findById(id) != null;
++    // ========== MAPPING METHODS ==========
++    
++    private UserResponse toResponse(User user) {
++        return new UserResponse(
++            user.getId(),
++            user.getUsername(),
++            user.getEmail(),
++            user.getStatus(),
++            user.getRoles(),
++            user.getCreatedAt(),
++            user.getUpdatedAt()
++        );
+     }
+     
+-    private int countAll() {
+-        return service.findAll().size();
++    private User fromRequest(CreateUserRequest request) {
++        User user = new User();
++        user.setUsername(request.username());
++        user.setEmail(request.email());
++        user.setPasswordHash(hashPassword(request.password()));
++        user.setStatus("ACTIVE");
++        user.setRoles(request.roles() != null ? request.roles() : Set.of("USER"));
++        user.setCreatedAt(LocalDateTime.now());
++        return user;
+     }
+     
+-    private void validateUser(User user) {
+-        if (user.getName() == null || user.getName().isEmpty()) {
+-            throw new IllegalArgumentException("Name required");
+-        }
++    private void updateFromRequest(User user, UpdateUserRequest request) {
++        if (request.username() != null) user.setUsername(request.username());
++        if (request.email() != null) user.setEmail(request.email());
++        if (request.status() != null) user.setStatus(request.status());
++        if (request.roles() != null) user.setRoles(request.roles());
++        user.setUpdatedAt(LocalDateTime.now());
+     }
++    
++    private String hashPassword(String password) {
++        // Use BCrypt in production
++        return "hashed_" + password;
++    }
+ }
+diff --git a/src/main/java/com/example/service/UserService.java b/src/main/java/com/example/service/UserService.java
+index ccc3333..ddd4444 100644
+--- a/src/main/java/com/example/service/UserService.java
++++ b/src/main/java/com/example/service/UserService.java
+@@ -1,45 +1,180 @@
+ package com.example.service;
+ 
+ import java.util.*;
++import java.util.concurrent.*;
++import java.time.LocalDateTime;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.cache.annotation.Cacheable;
++import org.springframework.cache.annotation.CacheEvict;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
+ 
+-public class UserService {
++/**
++ * Service layer for User business logic.
++ * Handles caching, transactions, and business rules.
++ */
++@Service
++@Transactional
++public class UserService {
+     
+-    private UserRepository repository;
++    private static final Logger log = LoggerFactory.getLogger(UserService.class);
++    private static final int CACHE_TTL_MINUTES = 30;
+     
+-    public UserService(UserRepository repository) {
++    private final UserRepository repository;
++    private final EmailService emailService;
++    private final AuditService auditService;
++    private final ExecutorService asyncExecutor;
++    
++    public UserService(UserRepository repository,
++                      EmailService emailService,
++                      AuditService auditService) {
+         this.repository = repository;
++        this.emailService = emailService;
++        this.auditService = auditService;
++        this.asyncExecutor = Executors.newWorkStealingPool();
+     }
+     
+-    public User findById(Long id) {
+-        return repository.findById(id);
++    /**
++     * Finds a user by ID with caching.
++     * @param id the user ID
++     * @return Optional containing the user if found
++     */
++    @Transactional(readOnly = true)
++    @Cacheable(value = "users", key = "#id")
++    public Optional<User> findById(Long id) {
++        log.debug("Finding user by id: {}", id);
++        return repository.findById(id);
+     }
+     
+-    public List<User> findAll() {
+-        return repository.findAll();
++    /**
++     * Finds all users with pagination.
++     * @param page page number
++     * @param size page size
++     * @param sortBy sort field
++     * @return page of users
++     */
++    @Transactional(readOnly = true)
++    public Page<User> findAll(int page, int size, String sortBy) {
++        log.debug("Finding all users: page={}, size={}, sort={}", page, size, sortBy);
++        Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).descending());
++        return repository.findAll(pageable);
+     }
+     
+-    public void save(User user) {
+-        repository.save(user);
++    /**
++     * Saves a user with validation and side effects.
++     * @param user the user to save
++     * @return the saved user
++     */
++    @CacheEvict(value = "users", key = "#user.id", condition = "#user.id != null")
++    public User save(User user) {
++        log.info("Saving user: {}", user.getUsername());
++        validateUser(user);
++        
++        boolean isNew = user.getId() == null;
++        User saved = repository.save(user);
++        
++        if (isNew) {
++            asyncExecutor.submit(() -> {
++                emailService.sendWelcomeEmail(saved.getEmail());
++                auditService.logCreation("User", saved.getId());
++            });
++        } else {
++            auditService.logUpdate("User", saved.getId());
++        }
++        
++        return saved;
+     }
+     
+-    public void update(Long id, User user) {
+-        User existing = repository.findById(id);
+-        if (existing != null) {
+-            existing.setName(user.getName());
+-            existing.setEmail(user.getEmail());
+-            repository.save(existing);
+-        }
++    /**
++     * Checks if a user exists by ID.
++     * @param id the user ID
++     * @return true if exists
++     */
++    @Transactional(readOnly = true)
++    public boolean existsById(Long id) {
++        return repository.existsById(id);
+     }
+     
+-    public void delete(Long id) {
++    /**
++     * Deletes a user by ID.
++     * @param id the user ID
++     */
++    @CacheEvict(value = "users", key = "#id")
++    public void deleteById(Long id) {
++        log.info("Deleting user: {}", id);
++        User user = repository.findById(id)
++            .orElseThrow(() -> new UserNotFoundException(id));
++        
+         repository.deleteById(id);
++        
++        asyncExecutor.submit(() -> {
++            emailService.sendAccountDeletionEmail(user.getEmail());
++            auditService.logDeletion("User", id);
++        });
+     }
+     
+-    // Helper methods
+-    private void validate(User user) {
+-        if (user == null) {
+-            throw new IllegalArgumentException("User cannot be null");
+-        }
++    /**
++     * Searches for users by criteria.
++     * @param criteria the search criteria
++     * @return list of matching users
++     */
++    @Transactional(readOnly = true)
++    public List<User> search(SearchCriteria criteria) {
++        log.debug("Searching users with criteria: {}", criteria);
++        
++        Specification<User> spec = Specification.where(null);
++        
++        if (criteria.username() != null) {
++            spec = spec.and((root, query, cb) -> 
++                cb.like(cb.lower(root.get("username")), 
++                       "%" + criteria.username().toLowerCase() + "%"));
++        }
++        
++        if (criteria.email() != null) {
++            spec = spec.and((root, query, cb) -> 
++                cb.equal(root.get("email"), criteria.email()));
++        }
++        
++        if (criteria.status() != null) {
++            spec = spec.and((root, query, cb) -> 
++                cb.equal(root.get("status"), criteria.status()));
++        }
++        
++        if (criteria.createdAfter() != null) {
++            spec = spec.and((root, query, cb) -> 
++                cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.createdAfter()));
++        }
++        
++        return repository.findAll(spec);
+     }
+     
+-    private boolean isDuplicate(User user) {
+-        List<User> all = repository.findAll();
+-        for (User u : all) {
+-            if (u.getEmail().equals(user.getEmail())) {
+-                return true;
+-            }
+-        }
+-        return false;
++    /**
++     * Starts a bulk import job.
++     * @param requests the users to import
++     * @return the job ID
++     */
++    public String startBulkImport(List<CreateUserRequest> requests) {
++        String jobId = UUID.randomUUID().toString();
++        log.info("Starting bulk import job: {}, count: {}", jobId, requests.size());
++        
++        asyncExecutor.submit(() -> {
++            int success = 0;
++            int failed = 0;
++            
++            for (CreateUserRequest request : requests) {
++                try {
++                    User user = new User();
++                    user.setUsername(request.username());
++                    user.setEmail(request.email());
++                    user.setStatus("ACTIVE");
++                    user.setCreatedAt(LocalDateTime.now());
++                    repository.save(user);
++                    success++;
++                } catch (Exception e) {
++                    log.error("Failed to import user: {}", request.email(), e);
++                    failed++;
++                }
++            }
++            
++            log.info("Bulk import completed: jobId={}, success={}, failed={}", 
++                jobId, success, failed);
++        });
++        
++        return jobId;
++    }
++    
++    /**
++     * Validates a user before saving.
++     * @param user the user to validate
++     */
++    private void validateUser(User user) {
++        if (user.getUsername() == null || user.getUsername().isBlank()) {
++            throw new ValidationException("Username is required");
++        }
++        if (user.getEmail() == null || !user.getEmail().contains("@")) {
++            throw new ValidationException("Valid email is required");
++        }
++        
++        // Check for duplicate email
++        if (user.getId() == null) {
++            repository.findByEmail(user.getEmail())
++                .ifPresent(existing -> {
++                    throw new DuplicateEmailException(user.getEmail());
++                });
++        }
+     }
+ }
+diff --git a/src/main/java/com/example/model/User.java b/src/main/java/com/example/model/User.java
+index eee5555..fff6666 100644
+--- a/src/main/java/com/example/model/User.java
++++ b/src/main/java/com/example/model/User.java
+@@ -1,35 +1,120 @@
+ package com.example.model;
+ 
++import jakarta.persistence.*;
++import java.time.LocalDateTime;
++import java.util.*;
++
++/**
++ * User entity representing application users.
++ * Includes auditing fields and role management.
++ */
++@Entity
++@Table(name = "users", indexes = {
++    @Index(name = "idx_user_email", columnList = "email", unique = true),
++    @Index(name = "idx_user_username", columnList = "username"),
++    @Index(name = "idx_user_status", columnList = "status")
++})
+ public class User {
+     
++    @Id
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
+-    private String name;
++    
++    @Column(nullable = false, length = 50)
++    private String username;
++    
++    @Column(nullable = false, unique = true, length = 255)
+     private String email;
+     
+-    public Long getId() {
+-        return id;
+-    }
++    @Column(name = "password_hash", nullable = false)
++    private String passwordHash;
+     
+-    public void setId(Long id) {
+-        this.id = id;
+-    }
++    @Column(nullable = false, length = 20)
++    private String status = "PENDING";
+     
+-    public String getName() {
+-        return name;
+-    }
++    @ElementCollection(fetch = FetchType.EAGER)
++    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
++    @Column(name = "role")
++    private Set<String> roles = new HashSet<>();
+     
+-    public void setName(String name) {
+-        this.name = name;
+-    }
++    @Column(name = "created_at", nullable = false, updatable = false)
++    private LocalDateTime createdAt;
+     
+-    public String getEmail() {
+-        return email;
+-    }
++    @Column(name = "updated_at")
++    private LocalDateTime updatedAt;
+     
+-    public void setEmail(String email) {
+-        this.email = email;
+-    }
++    @Column(name = "last_login_at")
++    private LocalDateTime lastLoginAt;
+     
+-    @Override
+-    public String toString() {
+-        return "User{id=" + id + ", name='" + name + "', email='" + email + "'}";
+-    }
++    @Version
++    private Long version;
++    
++    // Constructors
++    public User() {}
++    
++    public User(String username, String email) {
++        this.username = username;
++        this.email = email;
++        this.createdAt = LocalDateTime.now();
++    }
++    
++    // Getters and Setters
++    public Long getId() { return id; }
++    public void setId(Long id) { this.id = id; }
++    
++    public String getUsername() { return username; }
++    public void setUsername(String username) { this.username = username; }
++    
++    public String getEmail() { return email; }
++    public void setEmail(String email) { this.email = email; }
++    
++    public String getPasswordHash() { return passwordHash; }
++    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
++    
++    public String getStatus() { return status; }
++    public void setStatus(String status) { this.status = status; }
++    
++    public Set<String> getRoles() { return Collections.unmodifiableSet(roles); }
++    public void setRoles(Set<String> roles) { 
++        this.roles.clear();
++        if (roles != null) this.roles.addAll(roles);
++    }
++    
++    public void addRole(String role) { this.roles.add(role); }
++    public void removeRole(String role) { this.roles.remove(role); }
++    public boolean hasRole(String role) { return this.roles.contains(role); }
++    
++    public LocalDateTime getCreatedAt() { return createdAt; }
++    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
++    
++    public LocalDateTime getUpdatedAt() { return updatedAt; }
++    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
++    
++    public LocalDateTime getLastLoginAt() { return lastLoginAt; }
++    public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
++    
++    public Long getVersion() { return version; }
++    public void setVersion(Long version) { this.version = version; }
++    
++    // Lifecycle callbacks
++    @PrePersist
++    protected void onCreate() {
++        createdAt = LocalDateTime.now();
++    }
++    
++    @PreUpdate
++    protected void onUpdate() {
++        updatedAt = LocalDateTime.now();
++    }
++    
++    // equals, hashCode, toString
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (o == null || getClass() != o.getClass()) return false;
++        User user = (User) o;
++        return Objects.equals(id, user.id);
++    }
++    
++    @Override
++    public int hashCode() { return Objects.hash(id); }
++    
++    @Override
++    public String toString() {
++        return "User{id=" + id + ", username='" + username + "', email='" + email + 
++               "', status='" + status + "', roles=" + roles + "}";
++    }
+ }
+diff --git a/src/main/java/com/example/repository/UserRepository.java b/src/main/java/com/example/repository/UserRepository.java
+index 111aaaa..222bbbb 100644
+--- a/src/main/java/com/example/repository/UserRepository.java
++++ b/src/main/java/com/example/repository/UserRepository.java
+@@ -1,25 +1,75 @@
+ package com.example.repository;
+ 
+-import java.util.*;
++import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.jpa.repository.Modifying;
++import org.springframework.data.repository.query.Param;
++import org.springframework.stereotype.Repository;
+ 
+-public class UserRepository {
+-    
+-    private Map<Long, User> users = new HashMap<>();
+-    private Long idSequence = 0L;
+-    
+-    public User findById(Long id) {
+-        return users.get(id);
+-    }
+-    
+-    public List<User> findAll() {
+-        return new ArrayList<>(users.values());
+-    }
+-    
+-    public User save(User user) {
+-        if (user.getId() == null) {
+-            user.setId(++idSequence);
+-        }
+-        users.put(user.getId(), user);
+-        return user;
+-    }
++import java.time.LocalDateTime;
++import java.util.*;
++
++/**
++ * Repository interface for User entity.
++ * Extends JPA repository with custom query methods.
++ */
++@Repository
++public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+     
+-    public void deleteById(Long id) {
+-        users.remove(id);
+-    }
++    /**
++     * Finds a user by email address.
++     */
++    Optional<User> findByEmail(String email);
++    
++    /**
++     * Finds a user by username.
++     */
++    Optional<User> findByUsername(String username);
++    
++    /**
++     * Finds all users with a specific status.
++     */
++    List<User> findByStatus(String status);
++    
++    /**
++     * Finds all users with any of the specified roles.
++     */
++    @Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r IN :roles")
++    List<User> findByRolesIn(@Param("roles") Collection<String> roles);
++    
++    /**
++     * Finds users created after a specific date.
++     */
++    List<User> findByCreatedAtAfter(LocalDateTime dateTime);
++    
++    /**
++     * Finds users who have logged in recently.
++     */
++    @Query("SELECT u FROM User u WHERE u.lastLoginAt >= :since ORDER BY u.lastLoginAt DESC")
++    List<User> findActiveUsersSince(@Param("since") LocalDateTime since);
++    
++    /**
++     * Counts users by status.
++     */
++    long countByStatus(String status);
++    
++    /**
++     * Checks if an email is already registered.
++     */
++    boolean existsByEmail(String email);
++    
++    /**
++     * Updates user status in bulk.
++     */
++    @Modifying
++    @Query("UPDATE User u SET u.status = :newStatus WHERE u.status = :oldStatus")
++    int updateStatusBulk(@Param("oldStatus") String oldStatus, @Param("newStatus") String newStatus);
++    
++    /**
++     * Deletes users who have been inactive for a long time.
++     */
++    @Modifying
++    @Query("DELETE FROM User u WHERE u.status = 'INACTIVE' AND u.lastLoginAt < :cutoff")
++    int deleteInactiveUsers(@Param("cutoff") LocalDateTime cutoff);
++    
++    /**
++     * Searches users by partial username or email.
++     */
++    @Query("SELECT u FROM User u WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')) " +
++           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))")
++    List<User> searchByUsernameOrEmail(@Param("query") String query);
+ }
+diff --git a/src/main/java/com/example/config/SecurityConfig.java b/src/main/java/com/example/config/SecurityConfig.java
+new file mode 100644
+index 0000000..333cccc
+--- /dev/null
++++ b/src/main/java/com/example/config/SecurityConfig.java
+@@ -0,0 +1,95 @@
++package com.example.config;
++
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.security.config.annotation.web.builders.HttpSecurity;
++import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
++import org.springframework.security.config.http.SessionCreationPolicy;
++import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
++import org.springframework.security.crypto.password.PasswordEncoder;
++import org.springframework.security.web.SecurityFilterChain;
++
++/**
++ * Security configuration for the application.
++ * Configures JWT authentication and authorization rules.
++ */
++@Configuration
++@EnableWebSecurity
++public class SecurityConfig {
++    
++    private final JwtAuthenticationFilter jwtFilter;
++    
++    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
++        this.jwtFilter = jwtFilter;
++    }
++    
++    @Bean
++    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
++        return http
++            .csrf(csrf -> csrf.disable())
++            .sessionManagement(session -> 
++                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
++            .authorizeHttpRequests(auth -> auth
++                .requestMatchers("/api/auth/**").permitAll()
++                .requestMatchers("/api/public/**").permitAll()
++                .requestMatchers("/actuator/health").permitAll()
++                .requestMatchers("/api/admin/**").hasRole("ADMIN")
++                .requestMatchers("/api/v2/users/**").hasAnyRole("USER", "ADMIN")
++                .anyRequest().authenticated()
++            )
++            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
++            .build();
++    }
++    
++    @Bean
++    public PasswordEncoder passwordEncoder() {
++        return new BCryptPasswordEncoder(12);
++    }
++    
++    @Bean
++    public CorsConfigurationSource corsConfigurationSource() {
++        CorsConfiguration config = new CorsConfiguration();
++        config.setAllowedOrigins(List.of("http://localhost:3000", "https://app.example.com"));
++        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
++        config.setAllowedHeaders(List.of("*"));
++        config.setAllowCredentials(true);
++        config.setMaxAge(3600L);
++        
++        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
++        source.registerCorsConfiguration("/api/**", config);
++        return source;
++    }
++}
+diff --git a/src/test/java/com/example/service/UserServiceTest.java b/src/test/java/com/example/service/UserServiceTest.java
+new file mode 100644
+index 0000000..444dddd
+--- /dev/null
++++ b/src/test/java/com/example/service/UserServiceTest.java
+@@ -0,0 +1,150 @@
++package com.example.service;
++
++import org.junit.jupiter.api.*;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.*;
++import org.mockito.junit.jupiter.MockitoExtension;
++
++import java.time.LocalDateTime;
++import java.util.*;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++/**
++ * Unit tests for UserService.
++ */
++@ExtendWith(MockitoExtension.class)
++class UserServiceTest {
++    
++    @Mock
++    private UserRepository repository;
++    
++    @Mock
++    private EmailService emailService;
++    
++    @Mock
++    private AuditService auditService;
++    
++    @InjectMocks
++    private UserService userService;
++    
++    private User testUser;
++    
++    @BeforeEach
++    void setUp() {
++        testUser = new User("testuser", "test@example.com");
++        testUser.setId(1L);
++        testUser.setStatus("ACTIVE");
++        testUser.setCreatedAt(LocalDateTime.now());
++    }
++    
++    @Test
++    @DisplayName("findById should return user when exists")
++    void findById_WhenExists_ReturnsUser() {
++        when(repository.findById(1L)).thenReturn(Optional.of(testUser));
++        
++        Optional<User> result = userService.findById(1L);
++        
++        assertTrue(result.isPresent());
++        assertEquals("testuser", result.get().getUsername());
++        verify(repository).findById(1L);
++    }
++    
++    @Test
++    @DisplayName("findById should return empty when not exists")
++    void findById_WhenNotExists_ReturnsEmpty() {
++        when(repository.findById(999L)).thenReturn(Optional.empty());
++        
++        Optional<User> result = userService.findById(999L);
++        
++        assertFalse(result.isPresent());
++    }
++    
++    @Test
++    @DisplayName("save should persist new user and send welcome email")
++    void save_NewUser_PersistsAndSendsEmail() throws Exception {
++        User newUser = new User("newuser", "new@example.com");
++        when(repository.findByEmail(any())).thenReturn(Optional.empty());
++        when(repository.save(any())).thenAnswer(inv -> {
++            User u = inv.getArgument(0);
++            u.setId(2L);
++            return u;
++        });
++        
++        User result = userService.save(newUser);
++        
++        assertNotNull(result.getId());
++        verify(repository).save(newUser);
++        // Email is sent async, so we can't verify immediately
++    }
++    
++    @Test
++    @DisplayName("save should throw when email is duplicate")
++    void save_DuplicateEmail_ThrowsException() {
++        User newUser = new User("newuser", "test@example.com");
++        when(repository.findByEmail("test@example.com"))
++            .thenReturn(Optional.of(testUser));
++        
++        assertThrows(DuplicateEmailException.class, () -> 
++            userService.save(newUser));
++    }
++    
++    @Test
++    @DisplayName("save should throw when username is blank")
++    void save_BlankUsername_ThrowsException() {
++        User newUser = new User("", "valid@example.com");
++        
++        assertThrows(ValidationException.class, () -> 
++            userService.save(newUser));
++    }
++    
++    @Test
++    @DisplayName("deleteById should remove user and log audit")
++    void deleteById_ExistingUser_RemovesAndLogs() {
++        when(repository.findById(1L)).thenReturn(Optional.of(testUser));
++        doNothing().when(repository).deleteById(1L);
++        
++        userService.deleteById(1L);
++        
++        verify(repository).deleteById(1L);
++    }
++    
++    @Test
++    @DisplayName("deleteById should throw when user not found")
++    void deleteById_NotFound_ThrowsException() {
++        when(repository.findById(999L)).thenReturn(Optional.empty());
++        
++        assertThrows(UserNotFoundException.class, () -> 
++            userService.deleteById(999L));
++    }
++    
++    @Test
++    @DisplayName("search should filter by criteria")
++    void search_WithCriteria_ReturnsFilteredUsers() {
++        SearchCriteria criteria = new SearchCriteria("test", null, "ACTIVE", null);
++        when(repository.findAll(any(Specification.class)))
++            .thenReturn(List.of(testUser));
++        
++        List<User> result = userService.search(criteria);
++        
++        assertEquals(1, result.size());
++        assertEquals("testuser", result.get(0).getUsername());
++    }
++    
++    @Test
++    @DisplayName("existsById should return true when user exists")
++    void existsById_WhenExists_ReturnsTrue() {
++        when(repository.existsById(1L)).thenReturn(true);
++        
++        assertTrue(userService.existsById(1L));
++    }
++    
++    @Test
++    @DisplayName("existsById should return false when user does not exist")
++    void existsById_WhenNotExists_ReturnsFalse() {
++        when(repository.existsById(999L)).thenReturn(false);
++        
++        assertFalse(userService.existsById(999L));
++    }
++}
+diff --git a/pom.xml b/pom.xml
+index 555eeee..666ffff 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -12,8 +12,12 @@
+     
+     <properties>
+         <java.version>21</java.version>
++        <spring-boot.version>3.2.0</spring-boot.version>
+         <maven.compiler.source>21</maven.compiler.source>
+         <maven.compiler.target>21</maven.compiler.target>
++        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
++        <junit.version>5.10.0</junit.version>
++        <mockito.version>5.5.0</mockito.version>
+     </properties>
+ 
+     <dependencies>
+@@ -21,10 +25,60 @@
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-web</artifactId>
+         </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-data-jpa</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-validation</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-security</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-cache</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-actuator</artifactId>
++        </dependency>
++        
++        <!-- Database -->
++        <dependency>
++            <groupId>org.postgresql</groupId>
++            <artifactId>postgresql</artifactId>
++            <scope>runtime</scope>
++        </dependency>
++        <dependency>
++            <groupId>com.h2database</groupId>
++            <artifactId>h2</artifactId>
++            <scope>test</scope>
++        </dependency>
++        
++        <!-- Testing -->
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-test</artifactId>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.springframework.security</groupId>
++            <artifactId>spring-security-test</artifactId>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-core</artifactId>
++            <version>\${mockito.version}</version>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-junit-jupiter</artifactId>
++            <version>\${mockito.version}</version>
++            <scope>test</scope>
++        </dependency>
+     </dependencies>
+ 
+     <build>

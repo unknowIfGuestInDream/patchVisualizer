@@ -1,0 +1,147 @@
+diff --git a/old_name.txt b/new_name.txt
+similarity index 85%
+rename from old_name.txt
+rename to new_name.txt
+index abc1234..def5678 100644
+--- a/old_name.txt
++++ b/new_name.txt
+@@ -1,5 +1,6 @@
+ This file was renamed.
+ Original content line 1
+ Original content line 2
+-Old line that was removed
++New line that was added
++Another new line
+ Final line
+diff --git a/script.sh b/script.sh
+old mode 100644
+new mode 100755
+index 111aaaa..222bbbb
+--- a/script.sh
++++ b/script.sh
+@@ -1,5 +1,10 @@
+ #!/bin/bash
++# This script now has executable permissions
++
++set -euo pipefail
++
+ echo "Hello World"
+-# Simple script
++# Enhanced script with more features
++echo "Script completed successfully"
++exit 0
+diff --git a/src/OldClass.java b/src/RenamedClass.java
+similarity index 60%
+rename from src/OldClass.java
+rename to src/RenamedClass.java
+index 333cccc..444dddd 100644
+--- a/src/OldClass.java
++++ b/src/RenamedClass.java
+@@ -1,20 +1,35 @@
+-package src;
++package com.example.renamed;
++
++import java.util.*;
+ 
+ /**
+- * Old class implementation.
++ * Renamed and refactored class.
++ * Previously known as OldClass.
++ * 
++ * @since 2.0.0
+  */
+-public class OldClass {
++public class RenamedClass {
+     
+-    private String value;
++    private final String value;
++    private final List<String> items;
+     
+-    public OldClass(String value) {
++    public RenamedClass(String value) {
+         this.value = value;
++        this.items = new ArrayList<>();
+     }
+     
+     public String getValue() {
+         return value;
+     }
+     
+-    public void setValue(String value) {
+-        this.value = value;
++    public List<String> getItems() {
++        return Collections.unmodifiableList(items);
++    }
++    
++    public void addItem(String item) {
++        if (item != null && !item.isEmpty()) {
++            items.add(item);
++        }
+     }
+ }
+diff --git a/config/app.properties b/config/app.properties
+deleted file mode 100644
+index 555eeee..0000000
+--- a/config/app.properties
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Old configuration file - replaced by YAML
+-app.name=MyApplication
+-app.version=1.0.0
+-app.environment=development
+-
+-# Database settings
+-db.host=localhost
+-db.port=5432
+-db.name=myapp
+-
+-# Cache settings
+-cache.enabled=true
+-cache.ttl=3600
+-
+-# Deprecated configuration format
+diff --git a/config/application.yml b/config/application.yml
+new file mode 100644
+index 0000000..666ffff
+--- /dev/null
++++ b/config/application.yml
+@@ -0,0 +1,35 @@
++# New YAML configuration file
++app:
++  name: MyApplication
++  version: 2.0.0
++  environment: development
++
++# Database configuration
++spring:
++  datasource:
++    url: jdbc:postgresql://localhost:5432/myapp
++    username: ${DB_USER:admin}
++    password: ${DB_PASSWORD:}
++    hikari:
++      maximum-pool-size: 10
++      minimum-idle: 2
++
++  # JPA settings
++  jpa:
++    hibernate:
++      ddl-auto: validate
++    show-sql: false
++    properties:
++      hibernate:
++        format_sql: true
++
++# Cache configuration
++cache:
++  enabled: true
++  type: redis
++  ttl: 3600
++  redis:
++    host: ${REDIS_HOST:localhost}
++    port: ${REDIS_PORT:6379}
++
++# Logging
++logging:
++  level:
++    root: INFO
++    com.example: DEBUG

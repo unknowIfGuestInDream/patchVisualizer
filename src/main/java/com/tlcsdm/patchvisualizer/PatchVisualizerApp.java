@@ -48,6 +48,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.control.TextArea;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
@@ -103,13 +104,17 @@ public class PatchVisualizerApp extends Application {
         // Create main content
         tabPane = new TabPane();
 
+        // Import tab (for diff/patch files) - default tab
+        Tab importTab = createImportTab();
+        tabPane.getTabs().add(importTab);
+
+        // Input tab (for entering diff/patch text directly)
+        Tab inputTab = createInputTab();
+        tabPane.getTabs().add(inputTab);
+
         // File comparison tab
         Tab compareTab = createCompareTab();
         tabPane.getTabs().add(compareTab);
-
-        // Import tab (for diff/patch files)
-        Tab importTab = createImportTab();
-        tabPane.getTabs().add(importTab);
 
         root.setCenter(tabPane);
 
@@ -137,10 +142,12 @@ public class PatchVisualizerApp extends Application {
         root.setTop(menuBar);
 
         tabPane = new TabPane();
-        Tab compareTab = createCompareTab();
-        tabPane.getTabs().add(compareTab);
         Tab importTab = createImportTab();
         tabPane.getTabs().add(importTab);
+        Tab inputTab = createInputTab();
+        tabPane.getTabs().add(inputTab);
+        Tab compareTab = createCompareTab();
+        tabPane.getTabs().add(compareTab);
         root.setCenter(tabPane);
 
         Scene scene = new Scene(root, width, height);
@@ -153,13 +160,6 @@ public class PatchVisualizerApp extends Application {
 
         // File menu
         Menu fileMenu = new Menu(bundle.getString("menu.file"));
-        MenuItem openOriginal = new MenuItem(bundle.getString("menu.file.openOriginal"));
-        openOriginal.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
-        openOriginal.setOnAction(e -> selectOriginalFile());
-
-        MenuItem openRevised = new MenuItem(bundle.getString("menu.file.openRevised"));
-        openRevised.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN));
-        openRevised.setOnAction(e -> selectRevisedFile());
 
         MenuItem importDiff = new MenuItem(bundle.getString("menu.file.importDiff"));
         importDiff.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.CONTROL_DOWN));
@@ -169,8 +169,7 @@ public class PatchVisualizerApp extends Application {
         exit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN));
         exit.setOnAction(e -> primaryStage.close());
 
-        fileMenu.getItems().addAll(openOriginal, openRevised, new SeparatorMenuItem(), importDiff,
-                new SeparatorMenuItem(), exit);
+        fileMenu.getItems().addAll(importDiff, new SeparatorMenuItem(), exit);
 
         // Language menu
         Menu languageMenu = new Menu(bundle.getString("menu.language"));
@@ -283,6 +282,58 @@ public class PatchVisualizerApp extends Application {
         return tab;
     }
 
+    private Tab createInputTab() {
+        Tab tab = new Tab(bundle.getString("tab.input"));
+        tab.setClosable(false);
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+
+        // Label for instructions
+        Label instructionLabel = new Label(bundle.getString("label.inputHelp"));
+        instructionLabel.setStyle("-fx-text-fill: gray;");
+
+        // TextArea for diff/patch input
+        TextArea diffTextArea = new TextArea();
+        diffTextArea.setPromptText(bundle.getString("placeholder.diffText"));
+        diffTextArea.setWrapText(false);
+        diffTextArea.setStyle("-fx-font-family: 'monospace';");
+        VBox.setVgrow(diffTextArea, Priority.ALWAYS);
+
+        // Buttons
+        HBox buttonBox = new HBox(10);
+        Button visualizeButton = new Button(bundle.getString("button.visualize"));
+        Button clearButton = new Button(bundle.getString("button.clear"));
+        buttonBox.getChildren().addAll(visualizeButton, clearButton);
+
+        // WebView for displaying the diff
+        WebView inputWebView = new WebView();
+        inputWebView.setId("inputWebView");
+        VBox.setVgrow(inputWebView, Priority.ALWAYS);
+
+        visualizeButton.setOnAction(e -> {
+            String diffText = diffTextArea.getText();
+            if (diffText != null && !diffText.isEmpty()) {
+                List<String> lines = List.of(diffText.split("\n"));
+                String html = DiffHandleUtil.getDiffHtml(List.of(lines));
+                inputWebView.getEngine().loadContent(html);
+            } else {
+                showAlert(Alert.AlertType.WARNING, bundle.getString("message.warning"),
+                        bundle.getString("message.enterDiffText"));
+            }
+        });
+
+        clearButton.setOnAction(e -> {
+            diffTextArea.clear();
+            inputWebView.getEngine().loadContent("");
+        });
+
+        content.getChildren().addAll(instructionLabel, diffTextArea, buttonBox, inputWebView);
+
+        tab.setContent(content);
+        return tab;
+    }
+
     private void selectOriginalFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("fileChooser.selectOriginal"));
@@ -340,9 +391,9 @@ public class PatchVisualizerApp extends Application {
                 List<String> content = Files.readAllLines(file.toPath());
                 String html = DiffHandleUtil.getDiffHtml(List.of(content));
 
-                // Switch to import tab and display
-                tabPane.getSelectionModel().select(1);
-                Tab importTab = tabPane.getTabs().get(1);
+                // Switch to import tab (index 0) and display
+                tabPane.getSelectionModel().select(0);
+                Tab importTab = tabPane.getTabs().get(0);
                 VBox vbox = (VBox) importTab.getContent();
                 WebView importWebView = (WebView) vbox.getChildren().stream()
                         .filter(node -> node instanceof WebView)

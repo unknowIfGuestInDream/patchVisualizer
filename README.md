@@ -4,10 +4,12 @@ A JavaFX application for visualizing diff and patch files, supporting both Windo
 
 ## Features
 
-- **Compare Files**: Select two files and view their differences side-by-side
 - **Import Diff/Patch Files**: Import and visualize `.diff` or `.patch` files (unified diff format)
+- **Input Diff/Patch Text**: Directly input or paste diff/patch text for visualization
+- **Compare Files**: Select two files and view their differences side-by-side
 - **Side-by-Side View**: Clear visualization of file differences with syntax highlighting
 - **Cross-Platform**: Works on Windows and Ubuntu
+- **Multi-language Support**: Available in English, Chinese, and Japanese
 
 ## Requirements
 
@@ -26,27 +28,42 @@ mvn javafx:run
 
 ## Usage
 
+### Import Diff/Patch Files (Default Tab)
+
+1. Open the application
+2. In the "Import Diff/Patch" tab (shown by default):
+   - Click "Import Diff/Patch File" and select a `.diff` or `.patch` file
+   - The unified diff will be visualized with syntax highlighting
+
+### Input Diff/Patch Text
+
+1. Open the application
+2. Go to the "Input Diff/Patch" tab
+3. Paste or type your diff/patch content in the text area
+4. Click "Visualize" to display the diff with syntax highlighting
+
 ### Compare Files
 
 1. Open the application
-2. In the "Compare Files" tab:
+2. Go to the "Compare Files" tab:
    - Click "Browse..." to select the original file
    - Click "Browse..." to select the revised file
    - Click "Compare" to view the differences
 
-### Import Diff/Patch Files
-
-1. Open the application
-2. Go to the "Import Diff/Patch" tab
-3. Click "Import Diff/Patch File" and select a `.diff` or `.patch` file
-4. The unified diff will be visualized with syntax highlighting
-
 ### Keyboard Shortcuts
 
-- `Ctrl+O` - Open original file
-- `Ctrl+R` - Open revised file
 - `Ctrl+I` - Import diff/patch file
 - `Ctrl+Q` - Exit application
+
+## Test Samples
+
+The project includes various test samples for testing the diff visualization:
+
+- **Large single file changes** (~1000+ lines with modifications and additions)
+- **Multi-file diffs** (multiple files with many changes in a single patch)
+- **Binary file diffs**
+- **Edge cases** (whitespace changes, empty files, special characters)
+- **Rename and mode change diffs**
 
 ## Building Native Image (GraalVM)
 
