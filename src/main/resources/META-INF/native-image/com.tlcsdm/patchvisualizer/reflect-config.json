@@ -1,0 +1,9 @@
+[
+  {
+    "name": "com.tlcsdm.patchvisualizer.PatchVisualizerApp",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  }
+]
