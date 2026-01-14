@@ -67,7 +67,3 @@ The native executable will be created in the `target` directory.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Author
-
-梦里不知身是客

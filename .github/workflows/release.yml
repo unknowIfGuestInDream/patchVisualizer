@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Set up GraalVM
       uses: graalvm/setup-graalvm@v1
@@ -62,7 +62,7 @@ jobs:
         Compress-Archive -Path "release/*" -DestinationPath "${{ matrix.asset_name }}.zip"
 
     - name: Upload release artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ matrix.asset_name }}
         path: ${{ matrix.asset_name }}.zip

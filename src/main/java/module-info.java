@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2026 梦里不知身是客
+ * Copyright (c) 2026 unknowIfGuestInDream
  */
 
 module com.tlcsdm.patchvisualizer {

@@ -1,16 +1,14 @@
-name: Build
+name: Artifact
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
     branches: [ master ]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  upload-artifact:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -28,3 +26,10 @@ jobs:
     
     - name: Build with Maven
       run: mvn clean package -DskipTests
+    
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v5
+      with:
+        name: patchvisualizer-${{ matrix.os }}
+        path: target/*.jar
+        retention-days: 7
