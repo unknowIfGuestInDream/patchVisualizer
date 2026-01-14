@@ -1,0 +1,11 @@
+[
+  {
+    "name": "com.tlcsdm.patchvisualizer.PatchVisualizerApp",
+    "methods": [
+      { "name": "<init>", "parameterTypes": [] },
+      { "name": "init", "parameterTypes": [] },
+      { "name": "start", "parameterTypes": ["javafx.stage.Stage"] },
+      { "name": "stop", "parameterTypes": [] }
+    ]
+  }
+]
