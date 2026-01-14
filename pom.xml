@@ -20,7 +20,7 @@
         <javafx.version>21.0.2</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
         <java.diff.utils.version>4.16</java.diff.utils.version>
-        <graalvm.plugin.version>0.10.4</graalvm.plugin.version>
+        <graalvm.plugin.version>0.11.3</graalvm.plugin.version>
         <mainClass>com.tlcsdm.patchvisualizer.PatchVisualizerApp</mainClass>
     </properties>
 
