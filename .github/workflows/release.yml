@@ -33,8 +33,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
-      - name: Build native image
+      - name: Build native image (Linux)
+        if: runner.os == 'Linux'
         run: mvn clean package -Pnative -DskipTests
+
+      - name: Build native image (Windows)
+        if: runner.os == 'Windows'
+        run: mvn clean package -Pnative-windows -DskipTests
 
       - name: Prepare release package (Linux)
         if: runner.os == 'Linux'
