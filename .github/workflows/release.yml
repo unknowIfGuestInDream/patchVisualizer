@@ -28,11 +28,38 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up GraalVM
+      - name: Set up Gluon GraalVM (Linux)
+        if: runner.os == 'Linux'
+        env:
+          GLUON_GRAALVM_TAG: gluon-23+25.1-dev-2409082136
+          GLUON_GRAALVM_FILE: graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz
+        run: |
+          GLUON_GRAALVM_URL="https://github.com/gluonhq/graal/releases/download/${GLUON_GRAALVM_TAG/+/%2B}/${GLUON_GRAALVM_FILE}"
+          echo "Downloading GluonHQ GraalVM from: $GLUON_GRAALVM_URL"
+          curl -fsSL --retry 3 --retry-delay 5 --max-time 300 -o graalvm.tar.gz "$GLUON_GRAALVM_URL"
+          if [ ! -s graalvm.tar.gz ]; then
+            echo "Error: Failed to download GraalVM archive"
+            exit 1
+          fi
+          rm -rf $HOME/graalvm
+          mkdir -p $HOME/graalvm
+          tar -xzf graalvm.tar.gz -C $HOME/graalvm --strip-components=1
+          if [ ! -x "$HOME/graalvm/bin/java" ]; then
+            echo "Error: GraalVM extraction failed - java binary not found"
+            exit 1
+          fi
+          echo "GRAALVM_HOME=$HOME/graalvm" >> $GITHUB_ENV
+          echo "JAVA_HOME=$HOME/graalvm" >> $GITHUB_ENV
+          echo "$HOME/graalvm/bin" >> $GITHUB_PATH
+          echo "GluonHQ GraalVM setup complete"
+          $HOME/graalvm/bin/java --version
+
+      - name: Set up GraalVM (Windows)
+        if: runner.os == 'Windows'
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: '21'
-          distribution: 'graalvm-community'
+          distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
