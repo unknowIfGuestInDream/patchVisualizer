@@ -1,0 +1,10 @@
+--- original.txt
++++ revised.txt
+@@ -1,5 +1,6 @@
+ line 1
+-line 2
++line 2 modified
+ line 3
++new line inserted
+ line 4
+ line 5

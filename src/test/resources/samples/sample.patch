@@ -1,0 +1,10 @@
+--- a/test.java
++++ b/test.java
+@@ -1,7 +1,8 @@
+ public class Test {
+     public static void main(String[] args) {
+-        System.out.println("Hello");
++        System.out.println("Hello World");
++        System.out.println("Welcome!");
+     }
+ }
