@@ -55,16 +55,6 @@ mvn javafx:run
 - `Ctrl+I` - Import diff/patch file
 - `Ctrl+Q` - Exit application
 
-## Test Samples
-
-The project includes various test samples for testing the diff visualization:
-
-- **Large single file changes** (~1000+ lines with modifications and additions)
-- **Multi-file diffs** (multiple files with many changes in a single patch)
-- **Binary file diffs**
-- **Edge cases** (whitespace changes, empty files, special characters)
-- **Rename and mode change diffs**
-
 ## Building Native Image (GraalVM)
 
 To build a native executable using GraalVM Native Image:
