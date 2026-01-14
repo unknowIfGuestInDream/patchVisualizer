@@ -48,20 +48,47 @@ jobs:
             echo "Error: GraalVM extraction failed - java binary not found"
             exit 1
           fi
+          # Create symlink for libjvm.a to fix GluonFX linking issue with GraalVM 23+
+          CLIBS_DIR="$HOME/graalvm/lib/svm/clibraries/linux-amd64"
+          if [ -f "$CLIBS_DIR/glibc/libjvm.a" ] && [ ! -f "$CLIBS_DIR/libjvm.a" ]; then
+            ln -s glibc/libjvm.a "$CLIBS_DIR/libjvm.a"
+            echo "Created symlink for libjvm.a"
+          fi
           echo "GRAALVM_HOME=$HOME/graalvm" >> $GITHUB_ENV
           echo "JAVA_HOME=$HOME/graalvm" >> $GITHUB_ENV
           echo "$HOME/graalvm/bin" >> $GITHUB_PATH
           echo "GluonHQ GraalVM setup complete"
           $HOME/graalvm/bin/java --version
 
-      - name: Set up GraalVM (Windows)
+      - name: Set up Gluon GraalVM (Windows)
         if: runner.os == 'Windows'
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '21'
-          distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          native-image-job-reports: 'true'
+        env:
+          GLUON_GRAALVM_TAG: gluon-23+25.1-dev-2409082136
+          GLUON_GRAALVM_FILE: graalvm-java23-windows-amd64-gluon-23+25.1-dev.zip
+        shell: powershell
+        run: |
+          $GLUON_GRAALVM_URL = "https://github.com/gluonhq/graal/releases/download/$($env:GLUON_GRAALVM_TAG.Replace('+', '%2B'))/$env:GLUON_GRAALVM_FILE"
+          Write-Host "Downloading GluonHQ GraalVM from: $GLUON_GRAALVM_URL"
+          Invoke-WebRequest -Uri $GLUON_GRAALVM_URL -OutFile graalvm.zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 300
+          if (-not (Test-Path graalvm.zip) -or (Get-Item graalvm.zip).Length -eq 0) {
+            Write-Error "Error: Failed to download GraalVM archive"
+            exit 1
+          }
+          Remove-Item -Recurse -Force $env:USERPROFILE\graalvm -ErrorAction SilentlyContinue
+          Expand-Archive -Path graalvm.zip -DestinationPath $env:USERPROFILE\graalvm-temp
+          # Move contents from nested directory to graalvm folder
+          $nestedDir = Get-ChildItem -Path $env:USERPROFILE\graalvm-temp -Directory | Select-Object -First 1
+          Move-Item -Path $nestedDir.FullName -Destination $env:USERPROFILE\graalvm
+          Remove-Item -Recurse -Force $env:USERPROFILE\graalvm-temp
+          if (-not (Test-Path "$env:USERPROFILE\graalvm\bin\java.exe")) {
+            Write-Error "Error: GraalVM extraction failed - java binary not found"
+            exit 1
+          }
+          echo "GRAALVM_HOME=$env:USERPROFILE\graalvm" >> $env:GITHUB_ENV
+          echo "JAVA_HOME=$env:USERPROFILE\graalvm" >> $env:GITHUB_ENV
+          echo "$env:USERPROFILE\graalvm\bin" >> $env:GITHUB_PATH
+          Write-Host "GluonHQ GraalVM setup complete"
+          & "$env:USERPROFILE\graalvm\bin\java.exe" --version
 
       - name: Set up MSVC Developer Command Prompt (Windows)
         if: runner.os == 'Windows'
