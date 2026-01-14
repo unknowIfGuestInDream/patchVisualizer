@@ -50,11 +50,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.web.WebView;
+import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.MessageFormat;
@@ -94,6 +96,9 @@ public class PatchVisualizerApp extends Application {
 
     private void initializeUI() {
         primaryStage.setTitle(bundle.getString("app.title"));
+
+        // Set application icon
+        loadApplicationIcon();
 
         BorderPane root = new BorderPane();
 
@@ -423,5 +428,17 @@ public class PatchVisualizerApp extends Application {
         alert.setTitle(title);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void loadApplicationIcon() {
+        try (InputStream iconStream = getClass().getResourceAsStream("icon.png")) {
+            if (iconStream != null) {
+                Image icon = new Image(iconStream);
+                primaryStage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            // Icon loading failed, continue without icon
+            System.err.println("Failed to load application icon: " + e.getMessage());
+        }
     }
 }
