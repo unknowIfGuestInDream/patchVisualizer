@@ -1,0 +1,46 @@
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,50 +1,10 @@
+ {
+-    "database": {
+-        "host": "localhost",
+-        "port": 5432,
+-        "name": "myapp_db",
+-        "username": "admin",
+-        "password": "secret123"
+-    },
+-    "cache": {
+-        "enabled": true,
+-        "ttl": 3600,
+-        "maxSize": 1000
+-    },
+-    "logging": {
+-        "level": "DEBUG",
+-        "file": "/var/log/myapp.log",
+-        "maxFileSize": "100MB",
+-        "maxBackups": 5
+-    },
+-    "features": {
+-        "newUI": true,
+-        "betaFeatures": true,
+-        "experimentalApi": false
+-    },
+-    "deprecated": {
+-        "oldEndpoint": "/api/v1/legacy",
+-        "oldCache": true,
+-        "oldAuth": "basic"
+-    },
+-    "unused": {
+-        "placeholder1": "value1",
+-        "placeholder2": "value2",
+-        "placeholder3": "value3",
+-        "placeholder4": "value4",
+-        "placeholder5": "value5"
+-    },
+     "app": {
+-        "name": "MyApp",
+-        "version": "1.0.0",
+-        "environment": "development"
++        "name": "MyApp"
+     }
+ }

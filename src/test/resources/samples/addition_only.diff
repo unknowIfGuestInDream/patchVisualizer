@@ -1,0 +1,155 @@
+--- /dev/null
++++ b/src/main/java/com/example/NewFeature.java
+@@ -0,0 +1,150 @@
++package com.example;
++
++import java.util.*;
++import java.time.LocalDateTime;
++import java.util.concurrent.*;
++
++/**
++ * A brand new feature implementation.
++ * This file demonstrates an addition-only diff.
++ */
++public class NewFeature {
++    
++    private final String name;
++    private final Map<String, Object> config;
++    private final ExecutorService executor;
++    private volatile boolean running;
++    
++    public NewFeature(String name) {
++        this.name = name;
++        this.config = new ConcurrentHashMap<>();
++        this.executor = Executors.newCachedThreadPool();
++        this.running = false;
++    }
++    
++    public void start() {
++        if (running) {
++            throw new IllegalStateException("Feature already running");
++        }
++        running = true;
++        executor.submit(this::mainLoop);
++    }
++    
++    public void stop() {
++        running = false;
++        executor.shutdown();
++        try {
++            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
++                executor.shutdownNow();
++            }
++        } catch (InterruptedException e) {
++            executor.shutdownNow();
++            Thread.currentThread().interrupt();
++        }
++    }
++    
++    private void mainLoop() {
++        while (running) {
++            try {
++                processNextItem();
++                Thread.sleep(100);
++            } catch (InterruptedException e) {
++                Thread.currentThread().interrupt();
++                break;
++            }
++        }
++    }
++    
++    private void processNextItem() {
++        // Processing logic here
++        System.out.println("Processing item at " + LocalDateTime.now());
++    }
++    
++    public void configure(String key, Object value) {
++        config.put(key, value);
++    }
++    
++    public Object getConfig(String key) {
++        return config.get(key);
++    }
++    
++    public String getName() {
++        return name;
++    }
++    
++    public boolean isRunning() {
++        return running;
++    }
++    
++    // Additional utility methods
++    
++    public List<String> listConfigKeys() {
++        return new ArrayList<>(config.keySet());
++    }
++    
++    public void clearConfig() {
++        config.clear();
++    }
++    
++    public int getConfigCount() {
++        return config.size();
++    }
++    
++    public boolean hasConfig(String key) {
++        return config.containsKey(key);
++    }
++    
++    public void removeConfig(String key) {
++        config.remove(key);
++    }
++    
++    public Map<String, Object> getAllConfig() {
++        return Collections.unmodifiableMap(config);
++    }
++    
++    // Builder pattern for fluent API
++    
++    public static Builder builder(String name) {
++        return new Builder(name);
++    }
++    
++    public static class Builder {
++        private final String name;
++        private final Map<String, Object> initialConfig = new HashMap<>();
++        
++        private Builder(String name) {
++            this.name = name;
++        }
++        
++        public Builder withConfig(String key, Object value) {
++            initialConfig.put(key, value);
++            return this;
++        }
++        
++        public NewFeature build() {
++            NewFeature feature = new NewFeature(name);
++            initialConfig.forEach(feature::configure);
++            return feature;
++        }
++    }
++    
++    @Override
++    public String toString() {
++        return "NewFeature{" +
++                "name='" + name + '\'' +
++                ", running=" + running +
++                ", configCount=" + config.size() +
++                '}';
++    }
++    
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (o == null || getClass() != o.getClass()) return false;
++        NewFeature that = (NewFeature) o;
++        return Objects.equals(name, that.name);
++    }
++    
++    @Override
++    public int hashCode() {
++        return Objects.hash(name);
++    }
++}

@@ -1,0 +1,284 @@
+diff --git a/src/main/java/com/example/UserService.java b/src/main/java/com/example/UserService.java
+index 1234567..abcdefg 100644
+--- a/src/main/java/com/example/UserService.java
++++ b/src/main/java/com/example/UserService.java
+@@ -1,25 +1,45 @@
+ package com.example;
+ 
+ import java.util.List;
++import java.util.ArrayList;
++import java.util.Optional;
++import java.util.stream.Collectors;
+ 
+ public class UserService {
+     
+     private UserRepository repository;
++    private EmailService emailService;
++    private CacheService cacheService;
+     
+-    public UserService(UserRepository repository) {
++    public UserService(UserRepository repository, EmailService emailService, CacheService cacheService) {
+         this.repository = repository;
++        this.emailService = emailService;
++        this.cacheService = cacheService;
+     }
+     
+-    public User findById(Long id) {
+-        return repository.findById(id);
++    public Optional<User> findById(Long id) {
++        // Check cache first
++        Optional<User> cached = cacheService.get("user:" + id);
++        if (cached.isPresent()) {
++            return cached;
++        }
++        
++        Optional<User> user = repository.findById(id);
++        user.ifPresent(u -> cacheService.put("user:" + u.getId(), u));
++        return user;
+     }
+     
+-    public List<User> findAll() {
+-        return repository.findAll();
++    public List<User> findAll(int page, int size) {
++        return repository.findAll(page, size);
+     }
+     
+-    public void save(User user) {
+-        repository.save(user);
++    public User save(User user) {
++        User saved = repository.save(user);
++        cacheService.invalidate("user:" + saved.getId());
++        emailService.sendWelcomeEmail(saved.getEmail());
++        return saved;
+     }
++    
++    public void deleteById(Long id) {
++        repository.deleteById(id);
++        cacheService.invalidate("user:" + id);
++    }
++    
++    public List<User> findByStatus(String status) {
++        return repository.findAll(0, Integer.MAX_VALUE).stream()
++            .filter(u -> status.equals(u.getStatus()))
++            .collect(Collectors.toList());
++    }
+ }
+diff --git a/src/main/java/com/example/UserRepository.java b/src/main/java/com/example/UserRepository.java
+index 2345678..bcdefgh 100644
+--- a/src/main/java/com/example/UserRepository.java
++++ b/src/main/java/com/example/UserRepository.java
+@@ -1,15 +1,35 @@
+ package com.example;
+ 
++import java.util.Optional;
+ import java.util.List;
++import java.util.ArrayList;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
+ 
+ public class UserRepository {
+     
+-    private List<User> users;
++    private Map<Long, User> users = new ConcurrentHashMap<>();
++    private Long idSequence = 0L;
+     
+-    public User findById(Long id) {
+-        return users.stream().filter(u -> u.getId().equals(id)).findFirst().orElse(null);
++    public Optional<User> findById(Long id) {
++        return Optional.ofNullable(users.get(id));
+     }
+     
+-    public List<User> findAll() {
+-        return users;
++    public List<User> findAll(int page, int size) {
++        return new ArrayList<>(users.values()).subList(
++            Math.min(page * size, users.size()),
++            Math.min((page + 1) * size, users.size())
++        );
++    }
++    
++    public User save(User user) {
++        if (user.getId() == null) {
++            user.setId(++idSequence);
++        }
++        users.put(user.getId(), user);
++        return user;
++    }
++    
++    public void deleteById(Long id) {
++        users.remove(id);
+     }
+ }
+diff --git a/src/main/java/com/example/User.java b/src/main/java/com/example/User.java
+index 3456789..cdefghi 100644
+--- a/src/main/java/com/example/User.java
++++ b/src/main/java/com/example/User.java
+@@ -5,6 +5,10 @@ public class User {
+     private Long id;
+     private String name;
+     private String email;
++    private String status;
++    private String role;
++    private LocalDateTime createdAt;
++    private LocalDateTime updatedAt;
+     
+     public Long getId() {
+         return id;
+@@ -29,4 +33,36 @@ public class User {
+     public void setEmail(String email) {
+         this.email = email;
+     }
++    
++    public String getStatus() {
++        return status;
++    }
++    
++    public void setStatus(String status) {
++        this.status = status;
++    }
++    
++    public String getRole() {
++        return role;
++    }
++    
++    public void setRole(String role) {
++        this.role = role;
++    }
++    
++    public LocalDateTime getCreatedAt() {
++        return createdAt;
++    }
++    
++    public void setCreatedAt(LocalDateTime createdAt) {
++        this.createdAt = createdAt;
++    }
++    
++    public LocalDateTime getUpdatedAt() {
++        return updatedAt;
++    }
++    
++    public void setUpdatedAt(LocalDateTime updatedAt) {
++        this.updatedAt = updatedAt;
++    }
+ }
+diff --git a/src/test/java/com/example/UserServiceTest.java b/src/test/java/com/example/UserServiceTest.java
+new file mode 100644
+index 0000000..defghij
+--- /dev/null
++++ b/src/test/java/com/example/UserServiceTest.java
+@@ -0,0 +1,85 @@
++package com.example;
++
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.mockito.Mock;
++import org.mockito.MockitoAnnotations;
++
++import java.util.Optional;
++import java.util.List;
++import java.util.Arrays;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++class UserServiceTest {
++    
++    @Mock
++    private UserRepository repository;
++    
++    @Mock
++    private EmailService emailService;
++    
++    @Mock
++    private CacheService cacheService;
++    
++    private UserService userService;
++    
++    @BeforeEach
++    void setUp() {
++        MockitoAnnotations.openMocks(this);
++        userService = new UserService(repository, emailService, cacheService);
++    }
++    
++    @Test
++    void testFindByIdFromCache() {
++        User user = new User();
++        user.setId(1L);
++        user.setName("Test User");
++        
++        when(cacheService.get("user:1")).thenReturn(Optional.of(user));
++        
++        Optional<User> result = userService.findById(1L);
++        
++        assertTrue(result.isPresent());
++        assertEquals("Test User", result.get().getName());
++        verify(repository, never()).findById(anyLong());
++    }
++    
++    @Test
++    void testFindByIdFromRepository() {
++        User user = new User();
++        user.setId(1L);
++        user.setName("Test User");
++        
++        when(cacheService.get("user:1")).thenReturn(Optional.empty());
++        when(repository.findById(1L)).thenReturn(Optional.of(user));
++        
++        Optional<User> result = userService.findById(1L);
++        
++        assertTrue(result.isPresent());
++        assertEquals("Test User", result.get().getName());
++        verify(cacheService).put("user:1", user);
++    }
++    
++    @Test
++    void testSave() {
++        User user = new User();
++        user.setName("New User");
++        user.setEmail("test@example.com");
++        
++        User savedUser = new User();
++        savedUser.setId(1L);
++        savedUser.setName("New User");
++        savedUser.setEmail("test@example.com");
++        
++        when(repository.save(user)).thenReturn(savedUser);
++        
++        User result = userService.save(user);
++        
++        assertNotNull(result.getId());
++        verify(cacheService).invalidate("user:1");
++        verify(emailService).sendWelcomeEmail("test@example.com");
++    }
++}
+diff --git a/pom.xml b/pom.xml
+index 4567890..efghijk 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -15,6 +15,7 @@
+         <maven.compiler.source>21</maven.compiler.source>
+         <maven.compiler.target>21</maven.compiler.target>
+         <junit.version>5.10.0</junit.version>
++        <mockito.version>5.5.0</mockito.version>
+     </properties>
+ 
+     <dependencies>
+@@ -24,6 +25,18 @@
+             <version>${junit.version}</version>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-core</artifactId>
++            <version>${mockito.version}</version>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-junit-jupiter</artifactId>
++            <version>${mockito.version}</version>
++            <scope>test</scope>
++        </dependency>
+     </dependencies>
+ 
+     <build>
