@@ -1,5 +1,6 @@
 // Windows Resource Script for application icon
-// Usage on Windows:
+// Both icon.rc and icon.ico are in the project root directory
+// Usage on Windows (run from project root):
 // 1. Compile this file with: rc /fo icon.res icon.rc
 // 2. Add -H:NativeLinkerOption=icon.res to GraalVM native-image buildArgs
 IDI_ICON1 ICON "icon.ico"
