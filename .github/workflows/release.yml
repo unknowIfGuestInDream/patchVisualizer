@@ -16,9 +16,11 @@ jobs:
           - os: ubuntu-latest
             artifact_name: patchvisualizer
             asset_name: patchvisualizer-linux-amd64
+            gluonfx_target: x86_64-linux
           - os: windows-latest
             artifact_name: patchvisualizer.exe
             asset_name: patchvisualizer-windows-amd64
+            gluonfx_target: x86_64-windows
 
     runs-on: ${{ matrix.os }}
 
@@ -35,17 +37,17 @@ jobs:
 
       - name: Build native image (Linux)
         if: runner.os == 'Linux'
-        run: mvn clean package -Pnative -DskipTests
+        run: mvn -Pnative gluonfx:build -DskipTests
 
       - name: Build native image (Windows)
         if: runner.os == 'Windows'
-        run: mvn clean package -Pnative-windows -DskipTests
+        run: mvn -Pnative-windows gluonfx:build -DskipTests
 
       - name: Prepare release package (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p release
-          cp target/${{ matrix.artifact_name }} release/
+          cp target/gluonfx/${{ matrix.gluonfx_target }}/${{ matrix.artifact_name }} release/
           cp README.md release/
           cp LICENSE release/
           cd release
@@ -56,7 +58,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path release
-          Copy-Item "target/${{ matrix.artifact_name }}" -Destination "release/"
+          Copy-Item "target/gluonfx/${{ matrix.gluonfx_target }}/${{ matrix.artifact_name }}" -Destination "release/"
           Copy-Item "README.md" -Destination "release/"
           Copy-Item "LICENSE" -Destination "release/"
           Compress-Archive -Path "release/*" -DestinationPath "${{ matrix.asset_name }}.zip"
