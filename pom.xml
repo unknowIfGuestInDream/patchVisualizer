@@ -169,11 +169,9 @@
                             <buildArgs>
                                 <arg>--no-fallback</arg>
                                 <arg>-H:+ReportExceptionStackTraces</arg>
+                                <!-- Windows icon: pre-compiled icon.res from icon.ico -->
+                                <arg>-H:NativeLinkerOption=${project.basedir}/icon.res</arg>
                             </buildArgs>
-                            <!-- Icon configuration for Windows executable -->
-                            <!-- The icon.ico file in project root can be used with Windows resource compiler -->
-                            <!-- Run: rc /fo icon.res icon.rc (where icon.rc contains: IDI_ICON1 ICON "icon.ico") -->
-                            <!-- Then add: -H:NativeLinkerOption=icon.res to buildArgs -->
                         </configuration>
                     </plugin>
                 </plugins>

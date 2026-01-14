@@ -65,20 +65,7 @@ mvn clean package -Pnative
 
 The native executable will be created in the `target` directory.
 
-### Adding Icon to Windows Executable
-
-To embed the application icon into the Windows executable:
-
-1. **Compile the resource file** (requires Visual Studio Build Tools):
-   ```cmd
-   rc /fo icon.res icon.rc
-   ```
-
-2. **Build with the icon** by adding the resource to the native-image build:
-   - Add `-H:NativeLinkerOption=icon.res` to the `buildArgs` in `pom.xml`
-   - Or pass it directly: `mvn clean package -Pnative -Dnative.buildArgs=-H:NativeLinkerOption=icon.res`
-
-The `icon.ico` and `icon.rc` files are provided in the project root directory.
+**Windows Icon**: The application icon is automatically embedded into the Windows executable using the pre-compiled `icon.res` file. No additional configuration is required.
 
 ## Dependencies
 
