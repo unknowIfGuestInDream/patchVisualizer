@@ -65,7 +65,7 @@ jobs:
         env:
           GLUON_GRAALVM_TAG: gluon-23+25.1-dev-2409082136
           GLUON_GRAALVM_FILE: graalvm-java23-windows-amd64-gluon-23+25.1-dev.zip
-        shell: powershell
+        shell: pwsh
         run: |
           $GLUON_GRAALVM_URL = "https://github.com/gluonhq/graal/releases/download/$($env:GLUON_GRAALVM_TAG.Replace('+', '%2B'))/$env:GLUON_GRAALVM_FILE"
           Write-Host "Downloading GluonHQ GraalVM from: $GLUON_GRAALVM_URL"
@@ -94,6 +94,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install native build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libavcodec-dev libavformat-dev libavutil-dev
+
       - name: Build native image (Linux)
         if: runner.os == 'Linux'
         run: mvn -Pnative gluonfx:build -DskipTests
@@ -114,7 +120,7 @@ jobs:
 
       - name: Prepare release package (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release
           Copy-Item "target/gluonfx/${{ matrix.gluonfx_target }}/${{ matrix.artifact_name }}" -Destination "release/"
