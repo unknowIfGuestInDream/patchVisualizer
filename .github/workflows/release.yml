@@ -36,8 +36,8 @@ jobs:
           if (-not $version) { throw 'Failed to extract version from Maven' }
           Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$version" -Encoding utf8
 
-          $jar = Get-ChildItem -Path 'target\patchvisualizer-*.jar' -File -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($null -eq $jar) { throw 'No jar file found matching pattern target\patchvisualizer-*.jar' }
+          $jar = Get-ChildItem -Path 'target\patchvisualizer.jar' -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $jar) { throw 'No jar file found matching pattern target\patchvisualizer.jar' }
           Add-Content -Path $env:GITHUB_ENV -Value "APP_JAR=$($jar.Name)" -Encoding utf8
 
           if (-not (Test-Path dist)) { New-Item -ItemType Directory -Path dist | Out-Null }
@@ -54,8 +54,8 @@ jobs:
           if [ -z "$version" ]; then echo "Failed to extract version from Maven" >&2; exit 1; fi
           echo "APP_VERSION=$version" >> $GITHUB_ENV
 
-          jar=$(ls target/patchvisualizer-*.jar 2>/dev/null | head -n1 || true)
-          if [ -z "$jar" ]; then echo "No jar file found matching pattern target/patchvisualizer-*.jar" >&2; exit 1; fi
+          jar=$(ls target/patchvisualizer.jar 2>/dev/null | head -n1 || true)
+          if [ -z "$jar" ]; then echo "No jar file found matching pattern target/patchvisualizer.jar" >&2; exit 1; fi
           echo "APP_JAR=$(basename "$jar")" >> $GITHUB_ENV
 
           mkdir -p dist
