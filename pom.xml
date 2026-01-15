@@ -102,7 +102,7 @@
         <javafx.version>21.0.9</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
         <java.diff.utils.version>4.16</java.diff.utils.version>
-        <mainClass>com.tlcsdm.patchvisualizer.PatchVisualizerApp</mainClass>
+        <mainClass>com.tlcsdm.patchvisualizer.Launcher</mainClass>
     </properties>
 
     <dependencies>
