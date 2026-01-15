@@ -44,7 +44,7 @@ jobs:
         run: |
           $version = mvn -q -DforceStdout help:evaluate -Dexpression=project.version 2>$null | Select-String -Pattern '^\d' | Select-Object -First 1
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
-          $jar = (Get-ChildItem target\patchvisualizer-*. jar)[0].Name
+          $jar = (Get-ChildItem target\patchvisualizer-*.jar)[0].Name
           echo "APP_JAR=$jar" >> $env:GITHUB_ENV
 
       # ------------------------
