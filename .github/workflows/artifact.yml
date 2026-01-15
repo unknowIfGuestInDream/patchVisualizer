@@ -12,7 +12,7 @@ jobs:
   upload-artifact:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -43,14 +43,14 @@ jobs:
         shell: pwsh
         run: |
           $versionOutput = mvn -q -DforceStdout help:evaluate -Dexpression=project.version 2>$null
-          $versionMatch = $versionOutput | Select-String -Pattern '^\d+\.\d+' | Select-Object -First 1
+          $$version = $versionOutput | Where-Object { $_ -match '^\d+\.\d+' } | Select-Object -First 1
+
+          $if (-not $version) {
+              $throw "Failed to extract version from Maven"
+          $}
           
-          if ($null -eq $versionMatch) {
-            throw "Failed to extract version from Maven"
-          }
-          
-          $version = $versionMatch.Line.Trim()
-          echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $$version = $version.Trim()
+          $echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
           
           $jarFiles = Get-ChildItem target\patchvisualizer-*.jar -ErrorAction SilentlyContinue
           
