@@ -40,16 +40,12 @@ jobs:
 
       - name: Resolve version & jar (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: pwsh
         run: |
-          for /f %%v in ('mvn -q -DforceStdout help:evaluate -Dexpression=project.version') do (
-            set APP_VERSION=%%v
-            echo APP_VERSION=%%v>>%GITHUB_ENV%
-          )
-          for %%f in (target\patchvisualizer-*.jar) do (
-            echo APP_JAR=%%~nxf>>%GITHUB_ENV%
-            goto :eof
-          )
+          $version = mvn -q -DforceStdout help:evaluate -Dexpression=project.version 2>$null | Select-String -Pattern '^\d' | Select-Object -First 1
+          echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+          $jar = (Get-ChildItem target\patchvisualizer-*. jar)[0]. Name
+          echo "APP_JAR=$jar" >> $env: GITHUB_ENV
 
       # ------------------------
       # jpackage (Windows → exe)
