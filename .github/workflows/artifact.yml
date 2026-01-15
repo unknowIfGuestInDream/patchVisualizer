@@ -43,6 +43,7 @@ jobs:
         shell: cmd
         run: |
           for /f %%v in ('mvn -q -DforceStdout help:evaluate -Dexpression=project.version') do (
+            set APP_VERSION=%%v
             echo APP_VERSION=%%v>>%GITHUB_ENV%
           )
           for %%f in (target\patchvisualizer-*.jar) do (
