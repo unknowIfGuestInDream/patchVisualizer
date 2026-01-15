@@ -28,70 +28,40 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      # ------------------------
-      # Read version from pom.xml (maven-help-plugin)
-      # ------------------------
-      - name: Resolve version & jar (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          echo "APP_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)" >> $GITHUB_ENV
-          echo "APP_JAR=$(ls target/patchvisualizer-*.jar | head -n 1 | xargs -n1 basename)" >> $GITHUB_ENV
-
       - name: Resolve version & jar (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $versionOutput = & mvn -q -DforceStdout 'help:evaluate' -Dexpression='project.version' 2>$null
           $version = $versionOutput.Trim()
-          if (-not $version) {
-            throw 'Failed to extract version from Maven'
-          }
+          if (-not $version) { throw 'Failed to extract version from Maven' }
           Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$version" -Encoding utf8
 
           $jar = Get-ChildItem -Path 'target\patchvisualizer-*.jar' -File -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($null -eq $jar) {
-            throw 'No jar file found matching pattern target\patchvisualizer-*.jar'
-          }
+          if ($null -eq $jar) { throw 'No jar file found matching pattern target\patchvisualizer-*.jar' }
           Add-Content -Path $env:GITHUB_ENV -Value "APP_JAR=$($jar.Name)" -Encoding utf8
 
-          Write-Host "Resolved APP_VERSION=$version"
-          Write-Host "Resolved APP_JAR=$($jar.Name)"
+          if (-not (Test-Path dist)) { New-Item -ItemType Directory -Path dist | Out-Null }
+          $jarFull = $jar.FullName
+          Compress-Archive -Path $jarFull, 'README.md', 'LICENSE' -DestinationPath "dist/patchvisualizer-windows-$env:APP_VERSION.zip" -Force
+          Write-Host "Created dist/patchvisualizer-windows-$env:APP_VERSION.zip"
 
-      # ------------------------
-      # jpackage (Windows → exe)
-      # ------------------------
-      - name: Package with jpackage (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          jpackage ^
-            --type exe ^
-            --input target ^
-            --main-jar %APP_JAR% ^
-            --name PatchVisualizer ^
-            --app-version %APP_VERSION% ^
-            --icon icons\icon.ico ^
-            --vendor "Tlcsdm" ^
-            --win-menu ^
-            --win-shortcut ^
-            --dest dist
-
-      # ------------------------
-      # jpackage (Linux → deb)
-      # ------------------------
-      - name: Package with jpackage (Linux)
+      - name: Resolve version & jar (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          jpackage \
-            --type deb \
-            --input target \
-            --main-jar "${APP_JAR}" \
-            --name patchvisualizer \
-            --app-version "${APP_VERSION}" \
-            --icon icons/icon.png \
-            --dest dist
+          version=$(mvn -q -DforceStdout 'help:evaluate' -Dexpression=project.version 2>/dev/null)
+          version=$(echo "$version" | tr -d '\r')
+          if [ -z "$version" ]; then echo "Failed to extract version from Maven" >&2; exit 1; fi
+          echo "APP_VERSION=$version" >> $GITHUB_ENV
+
+          jar=$(ls target/patchvisualizer-*.jar 2>/dev/null | head -n1 || true)
+          if [ -z "$jar" ]; then echo "No jar file found matching pattern target/patchvisualizer-*.jar" >&2; exit 1; fi
+          echo "APP_JAR=$(basename "$jar")" >> $GITHUB_ENV
+
+          mkdir -p dist
+          zip -j "dist/patchvisualizer-linux-${version}.zip" "$jar" README.md LICENSE
+          echo "Created dist/patchvisualizer-linux-${version}.zip"
 
       - name: Upload packaged artifact
         uses: actions/upload-artifact@v4
