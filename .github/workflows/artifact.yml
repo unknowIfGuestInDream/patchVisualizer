@@ -43,26 +43,21 @@ jobs:
         shell: pwsh
         run: |
           $versionOutput = mvn -q -DforceStdout help:evaluate -Dexpression=project.version 2>$null
-          $$version = $versionOutput | Where-Object { $_ -match '^\d+\.\d+' } | Select-Object -First 1
+          $version = $versionOutput.Trim()
+          if (-not $version) {
+            throw "Failed to extract version from Maven"
+          }
+          echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          $if (-not $version) {
-              $throw "Failed to extract version from Maven"
-          $}
-          
-          $$version = $version.Trim()
-          $echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
-          
           $jarFiles = Get-ChildItem target\patchvisualizer-*.jar -ErrorAction SilentlyContinue
-          
           if ($null -eq $jarFiles -or $jarFiles.Count -eq 0) {
             throw "No jar file found matching pattern target\patchvisualizer-*.jar"
           }
-          
           $jar = $jarFiles[0].Name
           echo "APP_JAR=$jar" | Out-File -FilePath $env:GITHUB_ENV -Append
-          
+
           Write-Host "Resolved APP_VERSION=$version"
-          Write-Host "Resolved APP_JAR=$jar"    
+          Write-Host "Resolved APP_JAR=$jar"
 
       # ------------------------
       # jpackage (Windows → exe)
