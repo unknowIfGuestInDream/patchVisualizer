@@ -49,7 +49,7 @@ jobs:
             throw "Failed to extract version from Maven"
           }
           
-          $version = $versionMatch.Line. Trim()
+          $version = $versionMatch.Line.Trim()
           echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
           
           $jarFiles = Get-ChildItem target\patchvisualizer-*.jar -ErrorAction SilentlyContinue
@@ -59,7 +59,7 @@ jobs:
           }
           
           $jar = $jarFiles[0].Name
-          echo "APP_JAR=$jar" | Out-File -FilePath $env: GITHUB_ENV -Append
+          echo "APP_JAR=$jar" | Out-File -FilePath $env:GITHUB_ENV -Append
           
           Write-Host "Resolved APP_VERSION=$version"
           Write-Host "Resolved APP_JAR=$jar"    
