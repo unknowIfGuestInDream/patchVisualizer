@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           echo "APP_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)" >> $GITHUB_ENV
-          echo "APP_JAR=$(ls target/*.jar | head -n 1 | xargs -n1 basename)" >> $GITHUB_ENV
+          echo "APP_JAR=$(ls target/patchvisualizer-*.jar | head -n 1 | xargs -n1 basename)" >> $GITHUB_ENV
 
       - name: Resolve version & jar (Windows)
         if: runner.os == 'Windows'
@@ -45,7 +45,7 @@ jobs:
           for /f %%v in ('mvn -q -DforceStdout help:evaluate -Dexpression=project.version') do (
             echo APP_VERSION=%%v>>%GITHUB_ENV%
           )
-          for %%f in (target\*.jar) do (
+          for %%f in (target\patchvisualizer-*.jar) do (
             echo APP_JAR=%%~nxf>>%GITHUB_ENV%
             goto :eof
           )
