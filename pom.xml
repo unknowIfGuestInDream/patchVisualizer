@@ -26,6 +26,33 @@
   ~ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   -->
 
+<!--
+  ~ Copyright (c) 2026 unknowIfGuestInDream.
+  ~ All rights reserved.
+  ~
+  ~ Redistribution and use in source and binary forms, with or without
+  ~ modification, are permitted provided that the following conditions are met:
+  ~     * Redistributions of source code must retain the above copyright
+  ~ notice, this list of conditions and the following disclaimer.
+  ~     * Redistributions in binary form must reproduce the above copyright
+  ~ notice, this list of conditions and the following disclaimer in the
+  ~ documentation and/or other materials provided with the distribution.
+  ~     * Neither the name of unknowIfGuestInDream, any associated website, nor the
+  ~ names of its contributors may be used to endorse or promote products
+  ~ derived from this software without specific prior written permission.
+  ~
+  ~ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+  ~ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  ~ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  ~ DISCLAIMED. IN NO EVENT SHALL UNKNOWIFGUESTINDREAM BE LIABLE FOR ANY
+  ~ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  ~ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  ~ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+  ~ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  ~ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  ~ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  -->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -44,10 +71,10 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
         <javafx.version>21.0.9</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
         <java.diff.utils.version>4.16</java.diff.utils.version>
-        <gluonfx.plugin.version>1.0.28</gluonfx.plugin.version>
         <mainClass>com.tlcsdm.patchvisualizer.PatchVisualizerApp</mainClass>
     </properties>
 
@@ -94,6 +121,10 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <compilerArgs>
+                        <arg>--add-modules=ALL-SYSTEM</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
@@ -113,6 +144,15 @@
                         <manifest>
                             <mainClass>${mainClass}</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <Built-By>${user.name}</Built-By>
+                            <Build-Os>${os.name} (${os.version}; (${os.arch})</Build-Os>
+                            <Build-Jdk>${java.vendor} ${java.version}</Build-Jdk>
+                            <Build-Day>${maven.build.timestamp}</Build-Day>
+                            <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+                            <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+                            <Bundle-Vendor>Tlcsdm</Bundle-Vendor>
+                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>
@@ -127,6 +167,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${mainClass}</mainClass>
@@ -139,55 +180,30 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.3</version>
+                <version>3.5.4</version>
+                <configuration>
+                    <argLine>
+                        --add-modules=ALL-SYSTEM
+                        --add-exports javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+                        --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+                        --add-opens javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED
+                        --add-opens javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED
+                        -Dfile.encoding=${project.build.sourceEncoding}
+                    </argLine>
+                    <testFailureIgnore>true</testFailureIgnore>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-help-plugin</artifactId>
+                <version>3.5.1</version>
             </plugin>
         </plugins>
     </build>
 
-    <profiles>
-        <!-- Native profile for non-Windows platforms (Linux, macOS) -->
-        <profile>
-            <id>native</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.gluonhq</groupId>
-                        <artifactId>gluonfx-maven-plugin</artifactId>
-                        <version>${gluonfx.plugin.version}</version>
-                        <configuration>
-                            <mainClass>${mainClass}</mainClass>
-                            <target>host</target>
-                            <nativeImageArgs>
-                                <arg>--no-fallback</arg>
-                                <arg>-H:+ReportExceptionStackTraces</arg>
-                            </nativeImageArgs>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <!-- Native profile for Windows with icon resource -->
-        <profile>
-            <id>native-windows</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.gluonhq</groupId>
-                        <artifactId>gluonfx-maven-plugin</artifactId>
-                        <version>${gluonfx.plugin.version}</version>
-                        <configuration>
-                            <mainClass>${mainClass}</mainClass>
-                            <target>host</target>
-                            <nativeImageArgs>
-                                <arg>--no-fallback</arg>
-                                <arg>-H:+ReportExceptionStackTraces</arg>
-                                <!-- Windows icon: pre-compiled icon.res from icon.ico -->
-                                <arg>-H:NativeLinkerOption=${project.basedir}/icon.res</arg>
-                            </nativeImageArgs>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

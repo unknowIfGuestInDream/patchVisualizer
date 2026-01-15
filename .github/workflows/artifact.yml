@@ -3,6 +3,7 @@ name: Artifact
 on:
   push:
     branches: [ master ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,9 +28,66 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+      # ------------------------
+      # Read version from pom.xml (maven-help-plugin)
+      # ------------------------
+      - name: Resolve version & jar (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          echo "APP_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)" >> $GITHUB_ENV
+          echo "APP_JAR=$(ls target/*.jar | head -n 1 | xargs -n1 basename)" >> $GITHUB_ENV
+
+      - name: Resolve version & jar (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          for /f %%v in ('mvn -q -DforceStdout help:evaluate -Dexpression=project.version') do (
+            echo APP_VERSION=%%v>>%GITHUB_ENV%
+          )
+          for %%f in (target\*.jar) do (
+            echo APP_JAR=%%~nxf>>%GITHUB_ENV%
+            goto :eof
+          )
+
+      # ------------------------
+      # jpackage (Windows → exe)
+      # ------------------------
+      - name: Package with jpackage (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          jpackage ^
+            --type exe ^
+            --input target ^
+            --main-jar %APP_JAR% ^
+            --name PatchVisualizer ^
+            --app-version %APP_VERSION% ^
+            --icon icons\icon.ico ^
+            --vendor "Tlcsdm" ^
+            --win-menu ^
+            --win-shortcut ^
+            --dest dist
+
+      # ------------------------
+      # jpackage (Linux → deb)
+      # ------------------------
+      - name: Package with jpackage (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          jpackage \
+            --type deb \
+            --input target \
+            --main-jar "${APP_JAR}" \
+            --name patchvisualizer \
+            --app-version "${APP_VERSION}" \
+            --icon icons/icon.png \
+            --dest dist
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
         with:
           name: patchvisualizer-${{ matrix.os }}
-          path: target/*.jar
+          path: dist/*
           retention-days: 7

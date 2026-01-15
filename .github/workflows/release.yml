@@ -3,7 +3,6 @@ name: Release
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,144 +12,81 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: patchvisualizer
-            asset_name: patchvisualizer-linux-amd64
-            gluonfx_target: x86_64-linux
-          - os: windows-latest
-            artifact_name: patchvisualizer.exe
-            asset_name: patchvisualizer-windows-amd64
-            gluonfx_target: x86_64-windows
-
+        os: [ ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v6
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
 
-      - name: Set up Gluon GraalVM (Linux)
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      # ------------------------
+      # Read version from pom.xml (maven-help-plugin)
+      # ------------------------
+      - name: Resolve version & jar (Linux)
         if: runner.os == 'Linux'
-        env:
-          GLUON_GRAALVM_TAG: gluon-23+25.1-dev-2409082136
-          GLUON_GRAALVM_FILE: graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz
+        shell: bash
         run: |
-          GLUON_GRAALVM_URL="https://github.com/gluonhq/graal/releases/download/${GLUON_GRAALVM_TAG/+/%2B}/${GLUON_GRAALVM_FILE}"
-          echo "Downloading GluonHQ GraalVM from: $GLUON_GRAALVM_URL"
-          curl -fsSL --retry 3 --retry-delay 5 --max-time 300 -o graalvm.tar.gz "$GLUON_GRAALVM_URL"
-          if [ ! -s graalvm.tar.gz ]; then
-            echo "Error: Failed to download GraalVM archive"
-            exit 1
-          fi
-          rm -rf $HOME/graalvm
-          mkdir -p $HOME/graalvm
-          tar -xzf graalvm.tar.gz -C $HOME/graalvm --strip-components=1
-          if [ ! -x "$HOME/graalvm/bin/java" ]; then
-            echo "Error: GraalVM extraction failed - java binary not found"
-            exit 1
-          fi
-          # Create symlink for libjvm.a to fix GluonFX linking issue with GraalVM 23+
-          CLIBS_DIR="$HOME/graalvm/lib/svm/clibraries/linux-amd64"
-          if [ -f "$CLIBS_DIR/glibc/libjvm.a" ] && [ ! -f "$CLIBS_DIR/libjvm.a" ]; then
-            ln -s glibc/libjvm.a "$CLIBS_DIR/libjvm.a"
-            echo "Created symlink for libjvm.a"
-          fi
-          echo "GRAALVM_HOME=$HOME/graalvm" >> $GITHUB_ENV
-          echo "JAVA_HOME=$HOME/graalvm" >> $GITHUB_ENV
-          echo "$HOME/graalvm/bin" >> $GITHUB_PATH
-          echo "GluonHQ GraalVM setup complete"
-          $HOME/graalvm/bin/java --version
+          echo "APP_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)" >> $GITHUB_ENV
+          echo "APP_JAR=$(ls target/*.jar | head -n 1 | xargs -n1 basename)" >> $GITHUB_ENV
 
-      - name: Set up Gluon GraalVM (Windows)
+      - name: Resolve version & jar (Windows)
         if: runner.os == 'Windows'
-        env:
-          GLUON_GRAALVM_TAG: gluon-23+25.1-dev-2409082136
-          GLUON_GRAALVM_FILE: graalvm-java23-windows-amd64-gluon-23+25.1-dev.zip
-        shell: pwsh
+        shell: cmd
         run: |
-          $GLUON_GRAALVM_URL = "https://github.com/gluonhq/graal/releases/download/$($env:GLUON_GRAALVM_TAG.Replace('+', '%2B'))/$env:GLUON_GRAALVM_FILE"
-          Write-Host "Downloading GluonHQ GraalVM from: $GLUON_GRAALVM_URL"
-          Invoke-WebRequest -Uri $GLUON_GRAALVM_URL -OutFile graalvm.zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 300
-          if (-not (Test-Path graalvm.zip) -or (Get-Item graalvm.zip).Length -eq 0) {
-            Write-Error "Error: Failed to download GraalVM archive"
-            exit 1
-          }
-          Remove-Item -Recurse -Force $env:USERPROFILE\graalvm -ErrorAction SilentlyContinue
-          Expand-Archive -Path graalvm.zip -DestinationPath $env:USERPROFILE\graalvm-temp
-          # Move contents from nested directory to graalvm folder
-          $nestedDir = Get-ChildItem -Path $env:USERPROFILE\graalvm-temp -Directory | Select-Object -First 1
-          Move-Item -Path $nestedDir.FullName -Destination $env:USERPROFILE\graalvm
-          Remove-Item -Recurse -Force $env:USERPROFILE\graalvm-temp
-          if (-not (Test-Path "$env:USERPROFILE\graalvm\bin\java.exe")) {
-            Write-Error "Error: GraalVM extraction failed - java binary not found"
-            exit 1
-          }
-          echo "GRAALVM_HOME=$env:USERPROFILE\graalvm" >> $env:GITHUB_ENV
-          echo "JAVA_HOME=$env:USERPROFILE\graalvm" >> $env:GITHUB_ENV
-          echo "$env:USERPROFILE\graalvm\bin" >> $env:GITHUB_PATH
-          Write-Host "GluonHQ GraalVM setup complete"
-          & "$env:USERPROFILE\graalvm\bin\java.exe" --version
+          for /f %%v in ('mvn -q -DforceStdout help:evaluate -Dexpression=project.version') do (
+            echo APP_VERSION=%%v>>%GITHUB_ENV%
+          )
+          for %%f in (target\*.jar) do (
+            echo APP_JAR=%%~nxf>>%GITHUB_ENV%
+            goto :eof
+          )
 
-      - name: Set up MSVC Developer Command Prompt (Windows)
+      # ------------------------
+      # jpackage (Windows → exe)
+      # ------------------------
+      - name: Package with jpackage (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        shell: cmd
+        run: |
+          jpackage ^
+            --type exe ^
+            --input target ^
+            --main-jar %APP_JAR% ^
+            --name PatchVisualizer ^
+            --app-version %APP_VERSION% ^
+            --icon icons\icon.ico ^
+            --vendor "Tlcsdm" ^
+            --win-menu ^
+            --win-shortcut ^
+            --dest dist
 
-      - name: Install native build dependencies (Linux)
+      # ------------------------
+      # jpackage (Linux → deb)
+      # ------------------------
+      - name: Package with jpackage (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libfreetype6-dev \
-            libgl-dev \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libpango1.0-dev \
-            libx11-dev \
-            libxtst-dev
-
-      - name: Build native image (Linux)
-        if: runner.os == 'Linux'
-        run: mvn -Pnative gluonfx:build -DskipTests
-
-      - name: Build native image (Windows)
-        if: runner.os == 'Windows'
-        run: mvn -Pnative-windows gluonfx:build -DskipTests
-
-      - name: Prepare release package (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p release
-          cp target/gluonfx/${{ matrix.gluonfx_target }}/${{ matrix.artifact_name }} release/
-          cp README.md release/
-          cp LICENSE release/
-          cd release
-          zip -r ../${{ matrix.asset_name }}.zip .
-
-      - name: Prepare release package (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path release
-          Copy-Item "target/gluonfx/${{ matrix.gluonfx_target }}/${{ matrix.artifact_name }}" -Destination "release/"
-          Copy-Item "README.md" -Destination "release/"
-          Copy-Item "LICENSE" -Destination "release/"
-          Compress-Archive -Path "release/*" -DestinationPath "${{ matrix.asset_name }}.zip"
+          jpackage \
+            --type deb \
+            --input target \
+            --main-jar "${APP_JAR}" \
+            --name patchvisualizer \
+            --app-version "${APP_VERSION}" \
+            --icon icons/icon.png \
+            --dest dist
 
       - name: Upload to Release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset_name }}.zip
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to Artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.asset_name }}
-          path: ${{ matrix.asset_name }}.zip
-          retention-days: 7
