@@ -182,6 +182,11 @@
         <!-- Ikonli Material Icons for PreferencesFX (gmi-undo, gmi-redo, etc.) -->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-javafx</artifactId>
+            <version>${ikonli.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
             <artifactId>ikonli-materialdesign-pack</artifactId>
             <version>${ikonli.version}</version>
         </dependency>
