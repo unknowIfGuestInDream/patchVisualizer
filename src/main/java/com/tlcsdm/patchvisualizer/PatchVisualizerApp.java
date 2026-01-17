@@ -199,11 +199,15 @@ public class PatchVisualizerApp extends Application {
         importDiff.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.CONTROL_DOWN));
         importDiff.setOnAction(e -> importDiffFile());
 
+        MenuItem restart = new MenuItem(bundle.getString("menu.file.restart"));
+        restart.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        restart.setOnAction(e -> restartApplication());
+
         MenuItem exit = new MenuItem(bundle.getString("menu.file.exit"));
         exit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN));
         exit.setOnAction(e -> primaryStage.close());
 
-        fileMenu.getItems().addAll(importDiff, new SeparatorMenuItem(), exit);
+        fileMenu.getItems().addAll(importDiff, new SeparatorMenuItem(), restart, exit);
 
         // Preferences menu
         Menu preferencesMenu = new Menu(bundle.getString("menu.preferences"));
@@ -219,6 +223,19 @@ public class PatchVisualizerApp extends Application {
 
         menuBar.getMenus().addAll(fileMenu, preferencesMenu, helpMenu);
         return menuBar;
+    }
+
+    private void restartApplication() {
+        primaryStage.close();
+        javafx.application.Platform.runLater(() -> {
+            try {
+                PatchVisualizerApp app = new PatchVisualizerApp();
+                Stage newStage = new Stage();
+                app.start(newStage);
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"), e.getMessage());
+            }
+        });
     }
 
     private void showPreferences() {
