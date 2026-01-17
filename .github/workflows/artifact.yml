@@ -52,7 +52,7 @@ jobs:
           Copy-Item -Path $jarFull -Destination $stagingDir
           Copy-Item -Path 'README.md' -Destination $stagingDir
           Copy-Item -Path 'LICENSE' -Destination $stagingDir
-          Copy-Item -Path 'scripts\win\*' -Destination $stagingDir
+          Copy-Item -Path 'scripts\win\*' -Destination $stagingDir -Recurse
 
       - name: Download JRE (Windows)
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'release') && runner.os == 'Windows'
