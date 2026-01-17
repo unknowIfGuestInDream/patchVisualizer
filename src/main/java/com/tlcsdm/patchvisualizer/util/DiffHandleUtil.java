@@ -52,6 +52,10 @@ import java.util.stream.Collectors;
  */
 public class DiffHandleUtil {
 
+    private static final int MAX_BINARY_LINES = 100;
+    private static final String BINARY_MARKER = "GIT binary patch";
+    private static final String BINARY_DIFF_MARKER = "Binary files";
+
     private DiffHandleUtil() {
     }
 
@@ -133,6 +137,58 @@ public class DiffHandleUtil {
             return new ArrayList<>();
         }
         return new ArrayList<>(patchContent);
+    }
+
+    /**
+     * Filter and optimize patch content by truncating binary sections.
+     * This prevents large binary patches from freezing the UI.
+     *
+     * @param patchContent the original patch content
+     * @return optimized patch content
+     */
+    public static List<String> optimizePatchContent(List<String> patchContent) {
+        if (patchContent == null || patchContent.isEmpty()) {
+            return patchContent;
+        }
+
+        List<String> optimized = new ArrayList<>();
+        boolean inBinarySection = false;
+        int binaryLineCount = 0;
+
+        for (String line : patchContent) {
+            // Detect binary section start
+            if (!inBinarySection && (line.contains(BINARY_MARKER) || line.contains(BINARY_DIFF_MARKER))) {
+                inBinarySection = true;
+                binaryLineCount = 0;
+                optimized.add(line);
+                continue;
+            }
+
+            // In binary section
+            if (inBinarySection) {
+                binaryLineCount++;
+                
+                // Only keep first MAX_BINARY_LINES lines of binary content
+                if (binaryLineCount <= MAX_BINARY_LINES) {
+                    optimized.add(line);
+                } else if (binaryLineCount == MAX_BINARY_LINES + 1) {
+                    optimized.add("... (binary content truncated for performance) ...");
+                }
+
+                // Detect binary section end (next file or diff marker)
+                if (line.startsWith("diff --git") || line.startsWith("---") && binaryLineCount > 5) {
+                    inBinarySection = false;
+                    // Don't skip this line, it's the start of the next diff
+                    if (binaryLineCount > MAX_BINARY_LINES) {
+                        optimized.add(line);
+                    }
+                }
+            } else {
+                optimized.add(line);
+            }
+        }
+
+        return optimized;
     }
 
     /**

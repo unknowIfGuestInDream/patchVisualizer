@@ -379,7 +379,9 @@ public class PatchVisualizerApp extends Application {
             @Override
             protected String call() throws Exception {
                 List<String> lines = List.of(diffText.split("\n"));
-                return DiffHandleUtil.getDiffHtml(List.of(lines));
+                // Optimize content to handle binary sections
+                List<String> optimized = DiffHandleUtil.optimizePatchContent(lines);
+                return DiffHandleUtil.getDiffHtml(List.of(optimized));
             }
         };
 
@@ -504,6 +506,8 @@ public class PatchVisualizerApp extends Application {
     private void loadFile(File file) {
         try {
             List<String> content = Files.readAllLines(file.toPath());
+            // Optimize content to handle binary sections
+            content = DiffHandleUtil.optimizePatchContent(content);
             String html = DiffHandleUtil.getDiffHtml(List.of(content));
 
             // Switch to import tab (index 0) and display
@@ -551,6 +555,8 @@ public class PatchVisualizerApp extends Application {
             @Override
             protected String call() throws Exception {
                 List<String> content = Files.readAllLines(file.toPath());
+                // Optimize content to handle binary sections
+                content = DiffHandleUtil.optimizePatchContent(content);
                 return DiffHandleUtil.getDiffHtml(List.of(content));
             }
         };
