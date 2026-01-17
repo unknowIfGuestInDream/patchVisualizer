@@ -113,6 +113,8 @@ public class PatchVisualizerApp extends Application {
         this.primaryStage = primaryStage;
         this.preferences = AppPreferences.getInstance();
         this.currentLocale = preferences.getLocale();
+        // Synchronize system locale with saved preference
+        Locale.setDefault(currentLocale);
         this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale);
 
         initializePreferences();
@@ -244,6 +246,8 @@ public class PatchVisualizerApp extends Application {
         isChangingLanguage = true;
         try {
             this.currentLocale = locale;
+            // Synchronize system locale with the new locale
+            Locale.setDefault(locale);
             this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
 
             // Rebuild UI with new locale
