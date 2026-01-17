@@ -1,5 +1,3 @@
-#!/bin/bash
-
 #
 # Copyright (c) 2026 unknowIfGuestInDream.
 # All rights reserved.
@@ -28,8 +26,8 @@
 #
 
 # see https://api.adoptium.net/q/swagger-ui/#/Binary/getBinaryByVersion
-linuxApi='https://api.adoptium.net/v3/binary/version/jdk-21.0.9%2B10/linux/x64/jre/hotspot/normal/eclipse?project=jdk'
-wget -c ${linuxApi} --no-check-certificate -O jre.tar.gz
-tar -xzf jre.tar.gz
-mv jdk-21.0.9+10-jre jre
-rm -f jre.tar.gz
+$winApi = 'https://api.adoptium.net/v3/binary/version/jdk-21.0.9%2B10/windows/x64/jre/hotspot/normal/eclipse?project=jdk'
+Invoke-WebRequest -Uri $winApi -OutFile 'jre.zip'
+Expand-Archive -Path 'jre.zip' -DestinationPath '.' -Force
+Rename-Item -Path 'jdk-21.0.9+10-jre' -NewName 'jre'
+Remove-Item -Path 'jre.zip' -Force

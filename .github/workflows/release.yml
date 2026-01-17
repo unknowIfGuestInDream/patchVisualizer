@@ -42,8 +42,32 @@ jobs:
 
           if (-not (Test-Path dist)) { New-Item -ItemType Directory -Path dist | Out-Null }
           $jarFull = $jar.FullName
-          Compress-Archive -Path $jarFull, 'README.md', 'LICENSE' -DestinationPath "dist/patchvisualizer-windows-$env:APP_VERSION.zip" -Force
+
+          # Create staging directory
+          $stagingDir = 'staging'
+          if (-not (Test-Path $stagingDir)) { New-Item -ItemType Directory -Path $stagingDir | Out-Null }
+
+          # Copy files to staging
+          Copy-Item -Path $jarFull -Destination $stagingDir
+          Copy-Item -Path 'README.md' -Destination $stagingDir
+          Copy-Item -Path 'LICENSE' -Destination $stagingDir
+          Copy-Item -Path 'scripts\win\*' -Destination $stagingDir -Recurse
+
+      - name: Download JRE (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Push-Location staging
+          & ..\scripts\jre.ps1
+          Pop-Location
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'staging\*' -DestinationPath "dist/patchvisualizer-windows-$env:APP_VERSION.zip" -Force
           Write-Host "Created dist/patchvisualizer-windows-$env:APP_VERSION.zip"
+          Remove-Item -Path 'staging' -Recurse -Force
 
       - name: Resolve version & jar (Linux)
         if: runner.os == 'Linux'
@@ -58,9 +82,27 @@ jobs:
           if [ -z "$jar" ]; then echo "No jar file found matching pattern target/patchvisualizer.jar" >&2; exit 1; fi
           echo "APP_JAR=$(basename "$jar")" >> $GITHUB_ENV
 
-          mkdir -p dist
-          zip -j "dist/patchvisualizer-linux-${version}.zip" "$jar" README.md LICENSE
-          echo "Created dist/patchvisualizer-linux-${version}.zip"
+          mkdir -p dist staging
+          cp "$jar" README.md LICENSE staging/
+          cp scripts/linux/* staging/
+
+      - name: Download JRE (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd staging
+          bash ../scripts/jre.sh
+          cd ..
+
+      - name: Package artifact (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd staging
+          zip -r "../dist/patchvisualizer-linux-${APP_VERSION}.zip" .
+          cd ..
+          echo "Created dist/patchvisualizer-linux-${APP_VERSION}.zip"
+          rm -rf staging
 
       - name: Upload packaged artifact
         uses: actions/upload-artifact@v4
