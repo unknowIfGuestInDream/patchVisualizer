@@ -10,6 +10,7 @@ module com.tlcsdm.patchvisualizer {
     requires javafx.web;
     requires io.github.javadiffutils;
     requires com.dlsc.preferencesfx;
+    requires org.controlsfx.controls;
     requires org.slf4j;
     requires java.prefs;
 
