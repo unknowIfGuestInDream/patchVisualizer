@@ -88,7 +88,6 @@ public class PatchVisualizerApp extends Application {
     private Locale currentLocale;
     private AppPreferences preferences;
     private PreferencesFx preferencesFx;
-    private Stage preferencesStage;
 
     public static void main(String[] args) {
         launch(args);
@@ -235,11 +234,7 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void restartApplication() {
-        // Close any open preferences window
-        if (preferencesStage != null && preferencesStage.isShowing()) {
-            preferencesStage.close();
-        }
-        preferencesStage = null;
+        // PreferencesFx manages its own stage, so we just need to clear our reference
         preferencesFx = null;
         
         // Close the primary stage
@@ -262,26 +257,9 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void showPreferences() {
-        // Bring existing preferences window to front if already open
-        if (preferencesStage != null && preferencesStage.isShowing()) {
-            preferencesStage.toFront();
-            return;
-        }
-        
-        // Create a new PreferencesFx instance each time to avoid view reuse issues
-        PreferencesFx dialogPreferencesFx = createPreferencesFx();
-        
-        preferencesStage = new Stage();
-        preferencesStage.setTitle(bundle.getString("preferences.title"));
-        Scene preferencesScene = new Scene(dialogPreferencesFx.getView());
-        preferencesStage.setScene(preferencesScene);
-        
-        // Clean up references when the stage is closed to prevent memory leaks
-        preferencesStage.setOnHidden(e -> {
-            preferencesStage = null;
-        });
-        
-        preferencesStage.show();
+        // Use the PreferencesFx instance's show() method instead of manually creating a scene
+        // This method creates and manages its own stage, avoiding the scene graph reuse issue
+        preferencesFx.show(true);
     }
 
     private Tab createCompareTab() {
