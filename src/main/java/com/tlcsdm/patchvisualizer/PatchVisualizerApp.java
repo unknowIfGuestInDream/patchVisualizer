@@ -88,6 +88,7 @@ public class PatchVisualizerApp extends Application {
     private Locale currentLocale;
     private AppPreferences preferences;
     private PreferencesFx preferencesFx;
+    private Stage preferencesStage;
 
     public static void main(String[] args) {
         launch(args);
@@ -105,12 +106,7 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void initializePreferences() {
-        preferencesFx = PreferencesFx.of(AppPreferences.class,
-                Category.of(bundle.getString("preferences.category.general"),
-                        Setting.of(bundle.getString("preferences.language"),
-                                preferences.languageProperty())
-                )
-        );
+        preferencesFx = createPreferencesFx();
 
         // Listen for language changes
         preferences.languageProperty().addListener((obs, oldVal, newVal) -> {
@@ -118,6 +114,19 @@ public class PatchVisualizerApp extends Application {
                 changeLanguage(preferences.getLocale());
             }
         });
+    }
+
+    /**
+     * Factory method to create a PreferencesFx instance with the standard configuration.
+     * @return a new PreferencesFx instance
+     */
+    private PreferencesFx createPreferencesFx() {
+        return PreferencesFx.of(AppPreferences.class,
+                Category.of(bundle.getString("preferences.category.general"),
+                        Setting.of(bundle.getString("preferences.language"),
+                                preferences.languageProperty())
+                )
+        );
     }
 
     private void initializeUI() {
@@ -226,10 +235,12 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void restartApplication() {
-        // Close any open preferences window that might be open
-        if (preferencesFx != null) {
-            preferencesFx = null;
+        // Close any open preferences window
+        if (preferencesStage != null && preferencesStage.isShowing()) {
+            preferencesStage.close();
         }
+        preferencesStage = null;
+        preferencesFx = null;
         
         // Close the primary stage
         primaryStage.close();
@@ -251,18 +262,20 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void showPreferences() {
-        // Create a new PreferencesFx instance for the dialog to avoid view reuse issues
-        PreferencesFx dialogPreferencesFx = PreferencesFx.of(AppPreferences.class,
-                Category.of(bundle.getString("preferences.category.general"),
-                        Setting.of(bundle.getString("preferences.language"),
-                                preferences.languageProperty())
-                )
-        );
+        // Bring existing preferences window to front if already open
+        if (preferencesStage != null && preferencesStage.isShowing()) {
+            preferencesStage.toFront();
+            return;
+        }
         
-        Stage preferencesStage = new Stage();
+        // Create a new PreferencesFx instance to avoid view reuse issues
+        PreferencesFx dialogPreferencesFx = createPreferencesFx();
+        
+        preferencesStage = new Stage();
         preferencesStage.setTitle(bundle.getString("preferences.title"));
         Scene preferencesScene = new Scene(dialogPreferencesFx.getView());
         preferencesStage.setScene(preferencesScene);
+        preferencesStage.setOnHidden(e -> preferencesStage = null);
         preferencesStage.show();
     }
 
