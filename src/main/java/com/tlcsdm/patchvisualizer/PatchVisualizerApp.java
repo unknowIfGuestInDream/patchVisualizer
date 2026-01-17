@@ -226,14 +226,26 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void restartApplication() {
+        // Close any open preferences window that might be open
+        if (preferencesFx != null) {
+            preferencesFx = null;
+        }
+        
+        // Close the primary stage
         primaryStage.close();
+        
+        // Create new application instance on the JavaFX Application Thread
         javafx.application.Platform.runLater(() -> {
             try {
                 PatchVisualizerApp app = new PatchVisualizerApp();
                 Stage newStage = new Stage();
                 app.start(newStage);
             } catch (Exception e) {
-                showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"), e.getMessage());
+                // Since we're in a new instance context, create a simple error dialog
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setContentText(e.getMessage());
+                alert.showAndWait();
             }
         });
     }
