@@ -147,7 +147,10 @@ public class DiffHandleUtil {
      * @return optimized patch content
      */
     public static List<String> optimizePatchContent(List<String> patchContent) {
-        if (patchContent == null || patchContent.isEmpty()) {
+        if (patchContent == null) {
+            return null;
+        }
+        if (patchContent.isEmpty()) {
             return patchContent;
         }
 
