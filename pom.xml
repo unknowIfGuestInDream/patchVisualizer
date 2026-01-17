@@ -106,6 +106,7 @@
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <logback-classic.version>1.5.22</logback-classic.version>
         <gson.version>2.13.2</gson.version>
+        <ikonli.version>12.4.0</ikonli.version>
         <mainClass>com.tlcsdm.patchvisualizer.Launcher</mainClass>
     </properties>
 
@@ -176,6 +177,13 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>${gson.version}</version>
+        </dependency>
+
+        <!-- Ikonli Material2 Icons for PreferencesFX -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-material2-pack</artifactId>
+            <version>${ikonli.version}</version>
         </dependency>
 
         <!-- JUnit 5 -->

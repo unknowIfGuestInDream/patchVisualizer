@@ -13,6 +13,9 @@ module com.tlcsdm.patchvisualizer {
     requires org.controlsfx.controls;
     requires org.slf4j;
     requires java.prefs;
+    requires org.kordamp.ikonli.core;
+    requires org.kordamp.ikonli.javafx;
+    requires org.kordamp.ikonli.material2;
 
     opens com.tlcsdm.patchvisualizer to javafx.fxml, com.dlsc.preferencesfx;
     opens com.tlcsdm.patchvisualizer.util to javafx.fxml;
