@@ -49,7 +49,7 @@ public class AppPreferences {
     private AppPreferences() {
         // Load preferences
         lastDirectory.set(prefs.get(LAST_DIRECTORY_KEY, System.getProperty("user.home")));
-        language.set(prefs.get(LANGUAGE_KEY, Locale.getDefault().getLanguage()));
+        language.set(prefs.get(LANGUAGE_KEY, getDefaultLanguage()));
 
         // Add listeners to save changes
         lastDirectory.addListener((obs, oldVal, newVal) -> {
@@ -63,6 +63,21 @@ public class AppPreferences {
                 prefs.put(LANGUAGE_KEY, newVal);
             }
         });
+    }
+
+    /**
+     * Get the default language based on system locale.
+     * Returns "en", "zh", or "ja" based on system language.
+     * If system language is not one of these, returns "en" (English).
+     *
+     * @return default language code
+     */
+    private static String getDefaultLanguage() {
+        String sysLang = Locale.getDefault().getLanguage();
+        return switch (sysLang) {
+            case "zh", "ja" -> sysLang;
+            default -> "en";
+        };
     }
 
     public static AppPreferences getInstance() {

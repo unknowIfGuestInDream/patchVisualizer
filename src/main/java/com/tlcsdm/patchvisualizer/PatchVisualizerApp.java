@@ -30,6 +30,10 @@ import com.dlsc.preferencesfx.model.Setting;
 import com.tlcsdm.patchvisualizer.preferences.AppPreferences;
 import com.tlcsdm.patchvisualizer.util.DiffHandleUtil;
 import javafx.application.Application;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -78,6 +82,16 @@ public class PatchVisualizerApp extends Application {
 
     private static final String BUNDLE_BASE_NAME = "com.tlcsdm.patchvisualizer.i18n.messages";
     private static final int LARGE_FILE_THRESHOLD = 1024 * 1024; // 1MB
+    
+    // Language display name constants
+    private static final String LANG_DISPLAY_ENGLISH = "English";
+    private static final String LANG_DISPLAY_CHINESE = "中文";
+    private static final String LANG_DISPLAY_JAPANESE = "日本語";
+    
+    // Language code constants
+    private static final String LANG_CODE_ENGLISH = "en";
+    private static final String LANG_CODE_CHINESE = "zh";
+    private static final String LANG_CODE_JAPANESE = "ja";
 
     private WebView webView;
     private TabPane tabPane;
@@ -116,16 +130,60 @@ public class PatchVisualizerApp extends Application {
     }
 
     /**
+     * Convert language code to display name.
+     * @param langCode language code (en, zh, ja)
+     * @return display name (English, 中文, 日本語)
+     */
+    private static String langCodeToDisplayName(String langCode) {
+        return switch (langCode) {
+            case LANG_CODE_CHINESE -> LANG_DISPLAY_CHINESE;
+            case LANG_CODE_JAPANESE -> LANG_DISPLAY_JAPANESE;
+            default -> LANG_DISPLAY_ENGLISH;
+        };
+    }
+    
+    /**
+     * Convert display name to language code.
+     * @param displayName display name (English, 中文, 日本語)
+     * @return language code (en, zh, ja)
+     */
+    private static String displayNameToLangCode(String displayName) {
+        return switch (displayName) {
+            case LANG_DISPLAY_CHINESE -> LANG_CODE_CHINESE;
+            case LANG_DISPLAY_JAPANESE -> LANG_CODE_JAPANESE;
+            default -> LANG_CODE_ENGLISH;
+        };
+    }
+
+    /**
      * Factory method to create a PreferencesFx instance with the standard configuration.
      * @return a new PreferencesFx instance
      */
     private PreferencesFx createPreferencesFx() {
+        // Create observable list of language display names
+        ObservableList<String> languageOptions = 
+                FXCollections.observableArrayList(LANG_DISPLAY_ENGLISH, LANG_DISPLAY_CHINESE, LANG_DISPLAY_JAPANESE);
+        
+        // Create object property that maps between language code and display name
+        ObjectProperty<String> languageSelection = new SimpleObjectProperty<>();
+        
+        // Set initial value based on current language
+        languageSelection.set(langCodeToDisplayName(preferences.getLanguage()));
+        
+        // Add listener to sync changes back to preferences
+        languageSelection.addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                preferences.setLanguage(displayNameToLangCode(newVal));
+            }
+        });
+        
         return PreferencesFx.of(AppPreferences.class,
                 Category.of(bundle.getString("preferences.category.general"),
                         Setting.of(bundle.getString("preferences.language"),
-                                preferences.languageProperty())
+                                languageOptions,
+                                languageSelection)
                 )
-        );
+        ).instantPersistent(false).saveSettings(true).buttonsVisibility(true);
     }
 
     private void initializeUI() {
