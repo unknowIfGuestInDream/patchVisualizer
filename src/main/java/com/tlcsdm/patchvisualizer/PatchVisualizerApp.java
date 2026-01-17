@@ -102,6 +102,7 @@ public class PatchVisualizerApp extends Application {
     private Locale currentLocale;
     private AppPreferences preferences;
     private PreferencesFx preferencesFx;
+    private boolean isChangingLanguage = false;
 
     public static void main(String[] args) {
         launch(args);
@@ -123,7 +124,7 @@ public class PatchVisualizerApp extends Application {
 
         // Listen for language changes
         preferences.languageProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.equals(oldVal)) {
+            if (newVal != null && !newVal.equals(oldVal) && !isChangingLanguage) {
                 changeLanguage(preferences.getLocale());
             }
         });
@@ -172,8 +173,18 @@ public class PatchVisualizerApp extends Application {
         
         // Add listener to sync changes back to preferences
         languageSelection.addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                preferences.setLanguage(displayNameToLangCode(newVal));
+            if (newVal != null && !newVal.equals(oldVal) && !isChangingLanguage) {
+                String newLangCode = displayNameToLangCode(newVal);
+                String currentLangCode = preferences.getLanguage();
+                // Only update if the language code actually changed
+                if (!newLangCode.equals(currentLangCode)) {
+                    isChangingLanguage = true;
+                    try {
+                        preferences.setLanguage(newLangCode);
+                    } finally {
+                        isChangingLanguage = false;
+                    }
+                }
             }
         });
         
@@ -226,33 +237,42 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void changeLanguage(Locale locale) {
-        this.currentLocale = locale;
-        this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
+        if (isChangingLanguage) {
+            return; // Prevent recursive calls
+        }
+        
+        isChangingLanguage = true;
+        try {
+            this.currentLocale = locale;
+            this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
 
-        // Rebuild UI with new locale
-        Scene oldScene = primaryStage.getScene();
-        double width = oldScene.getWidth();
-        double height = oldScene.getHeight();
+            // Rebuild UI with new locale
+            Scene oldScene = primaryStage.getScene();
+            double width = oldScene.getWidth();
+            double height = oldScene.getHeight();
 
-        // Reinitialize preferences UI
-        initializePreferences();
+            // Reinitialize preferences UI
+            initializePreferences();
 
-        BorderPane root = new BorderPane();
-        MenuBar menuBar = createMenuBar();
-        root.setTop(menuBar);
+            BorderPane root = new BorderPane();
+            MenuBar menuBar = createMenuBar();
+            root.setTop(menuBar);
 
-        tabPane = new TabPane();
-        Tab importTab = createImportTab();
-        tabPane.getTabs().add(importTab);
-        Tab inputTab = createInputTab();
-        tabPane.getTabs().add(inputTab);
-        Tab compareTab = createCompareTab();
-        tabPane.getTabs().add(compareTab);
-        root.setCenter(tabPane);
+            tabPane = new TabPane();
+            Tab importTab = createImportTab();
+            tabPane.getTabs().add(importTab);
+            Tab inputTab = createInputTab();
+            tabPane.getTabs().add(inputTab);
+            Tab compareTab = createCompareTab();
+            tabPane.getTabs().add(compareTab);
+            root.setCenter(tabPane);
 
-        Scene scene = new Scene(root, width, height);
-        primaryStage.setScene(scene);
-        primaryStage.setTitle(bundle.getString("app.title"));
+            Scene scene = new Scene(root, width, height);
+            primaryStage.setScene(scene);
+            primaryStage.setTitle(bundle.getString("app.title"));
+        } finally {
+            isChangingLanguage = false;
+        }
     }
 
     private MenuBar createMenuBar() {
