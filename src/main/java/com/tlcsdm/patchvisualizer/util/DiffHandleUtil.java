@@ -176,7 +176,7 @@ public class DiffHandleUtil {
                 }
 
                 // Detect binary section end (next file or diff marker)
-                if (line.startsWith("diff --git") || line.startsWith("---") && binaryLineCount > 5) {
+                if (line.startsWith("diff --git") || (line.startsWith("---") && binaryLineCount > 5)) {
                     inBinarySection = false;
                     // Don't skip this line, it's the start of the next diff
                     if (binaryLineCount > MAX_BINARY_LINES) {

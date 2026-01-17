@@ -96,9 +96,9 @@ public class AppPreferences {
     public Locale getLocale() {
         String lang = getLanguage();
         return switch (lang) {
-            case "zh" -> Locale.CHINESE;
-            case "ja" -> Locale.JAPANESE;
-            default -> Locale.ENGLISH;
+            case "zh" -> Locale.forLanguageTag("zh");
+            case "ja" -> Locale.forLanguageTag("ja");
+            default -> Locale.forLanguageTag("en");
         };
     }
 }
