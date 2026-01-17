@@ -109,7 +109,6 @@ public class PatchVisualizerApp extends Application {
                 Category.of(bundle.getString("preferences.category.general"),
                         Setting.of(bundle.getString("preferences.language"),
                                 preferences.languageProperty())
-                                .description(bundle.getString("preferences.language.description"))
                 )
         );
 

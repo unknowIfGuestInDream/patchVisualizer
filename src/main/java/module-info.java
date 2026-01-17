@@ -11,6 +11,7 @@ module com.tlcsdm.patchvisualizer {
     requires io.github.javadiffutils;
     requires com.dlsc.preferencesfx;
     requires org.slf4j;
+    requires java.prefs;
 
     opens com.tlcsdm.patchvisualizer to javafx.fxml, com.dlsc.preferencesfx;
     opens com.tlcsdm.patchvisualizer.util to javafx.fxml;
