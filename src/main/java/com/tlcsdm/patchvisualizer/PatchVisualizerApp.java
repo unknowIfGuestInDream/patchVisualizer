@@ -105,7 +105,7 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void initializePreferences() {
-        preferencesFx = PreferencesFx.of(
+        preferencesFx = PreferencesFx.of(AppPreferences.class,
                 Category.of(bundle.getString("preferences.category.general"),
                         Setting.of(bundle.getString("preferences.language"),
                                 preferences.languageProperty())
