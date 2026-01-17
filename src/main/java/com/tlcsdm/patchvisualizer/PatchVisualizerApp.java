@@ -30,7 +30,6 @@ import com.dlsc.preferencesfx.model.Setting;
 import com.tlcsdm.patchvisualizer.preferences.AppPreferences;
 import com.tlcsdm.patchvisualizer.util.DiffHandleUtil;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -41,12 +40,10 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -108,14 +105,13 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void initializePreferences() {
-        preferencesFx = PreferencesFx.of(AppPreferences.class,
+        preferencesFx = PreferencesFx.of(
                 Category.of(bundle.getString("preferences.category.general"),
                         Setting.of(bundle.getString("preferences.language"),
-                                preferences.languageProperty(),
-                                "en", "zh", "ja")
+                                preferences.languageProperty())
                                 .description(bundle.getString("preferences.language.description"))
                 )
-        ).instantPersistent(true);
+        );
 
         // Listen for language changes
         preferences.languageProperty().addListener((obs, oldVal, newVal) -> {
