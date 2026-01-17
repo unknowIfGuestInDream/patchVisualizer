@@ -105,6 +105,7 @@
         <preferencesfx.version>11.17.0</preferencesfx.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <logback-classic.version>1.5.22</logback-classic.version>
+        <gson.version>2.13.2</gson.version>
         <mainClass>com.tlcsdm.patchvisualizer.Launcher</mainClass>
     </properties>
 
@@ -170,6 +171,11 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback-classic.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
         </dependency>
 
         <!-- JUnit 5 -->
