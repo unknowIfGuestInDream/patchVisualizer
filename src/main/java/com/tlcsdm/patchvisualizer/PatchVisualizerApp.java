@@ -120,12 +120,41 @@ public class PatchVisualizerApp extends Application {
      * @return a new PreferencesFx instance
      */
     private PreferencesFx createPreferencesFx() {
+        // Create observable list of language display names
+        javafx.collections.ObservableList<String> languageOptions = 
+                javafx.collections.FXCollections.observableArrayList("English", "中文", "日本語");
+        
+        // Create object property that maps between language code and display name
+        javafx.beans.property.ObjectProperty<String> languageSelection = 
+                new javafx.beans.property.SimpleObjectProperty<>();
+        
+        // Set initial value based on current language
+        String currentLang = preferences.getLanguage();
+        languageSelection.set(switch (currentLang) {
+            case "zh" -> "中文";
+            case "ja" -> "日本語";
+            default -> "English";
+        });
+        
+        // Add listener to sync changes back to preferences
+        languageSelection.addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                String langCode = switch (newVal) {
+                    case "中文" -> "zh";
+                    case "日本語" -> "ja";
+                    default -> "en";
+                };
+                preferences.setLanguage(langCode);
+            }
+        });
+        
         return PreferencesFx.of(AppPreferences.class,
                 Category.of(bundle.getString("preferences.category.general"),
                         Setting.of(bundle.getString("preferences.language"),
-                                preferences.languageProperty())
+                                languageOptions,
+                                languageSelection)
                 )
-        );
+        ).instantPersistent(false).saveSettings(true).buttonsVisibility(true);
     }
 
     private void initializeUI() {
