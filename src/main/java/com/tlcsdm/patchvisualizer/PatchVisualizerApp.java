@@ -268,14 +268,19 @@ public class PatchVisualizerApp extends Application {
             return;
         }
         
-        // Create a new PreferencesFx instance to avoid view reuse issues
+        // Create a new PreferencesFx instance each time to avoid view reuse issues
         PreferencesFx dialogPreferencesFx = createPreferencesFx();
         
         preferencesStage = new Stage();
         preferencesStage.setTitle(bundle.getString("preferences.title"));
         Scene preferencesScene = new Scene(dialogPreferencesFx.getView());
         preferencesStage.setScene(preferencesScene);
-        preferencesStage.setOnHidden(e -> preferencesStage = null);
+        
+        // Clean up references when the stage is closed to prevent memory leaks
+        preferencesStage.setOnHidden(e -> {
+            preferencesStage = null;
+        });
+        
         preferencesStage.show();
     }
 
