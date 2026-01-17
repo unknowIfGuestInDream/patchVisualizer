@@ -24,8 +24,14 @@
 
 package com.tlcsdm.patchvisualizer;
 
+import com.dlsc.preferencesfx.PreferencesFx;
+import com.dlsc.preferencesfx.model.Category;
+import com.dlsc.preferencesfx.model.Setting;
+import com.tlcsdm.patchvisualizer.preferences.AppPreferences;
 import com.tlcsdm.patchvisualizer.util.DiffHandleUtil;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -34,6 +40,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
@@ -47,6 +54,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.web.WebView;
@@ -72,6 +80,7 @@ import java.util.ResourceBundle;
 public class PatchVisualizerApp extends Application {
 
     private static final String BUNDLE_BASE_NAME = "com.tlcsdm.patchvisualizer.i18n.messages";
+    private static final int LARGE_FILE_THRESHOLD = 1024 * 1024; // 1MB
 
     private WebView webView;
     private TabPane tabPane;
@@ -80,6 +89,8 @@ public class PatchVisualizerApp extends Application {
     private TextField revisedFileField;
     private ResourceBundle bundle;
     private Locale currentLocale;
+    private AppPreferences preferences;
+    private PreferencesFx preferencesFx;
 
     public static void main(String[] args) {
         launch(args);
@@ -88,10 +99,30 @@ public class PatchVisualizerApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
-        this.currentLocale = Locale.getDefault();
+        this.preferences = AppPreferences.getInstance();
+        this.currentLocale = preferences.getLocale();
         this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale);
 
+        initializePreferences();
         initializeUI();
+    }
+
+    private void initializePreferences() {
+        preferencesFx = PreferencesFx.of(AppPreferences.class,
+                Category.of(bundle.getString("preferences.category.general"),
+                        Setting.of(bundle.getString("preferences.language"),
+                                preferences.languageProperty(),
+                                "en", "zh", "ja")
+                                .description(bundle.getString("preferences.language.description"))
+                )
+        ).instantPersistent(true);
+
+        // Listen for language changes
+        preferences.languageProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.equals(oldVal)) {
+                changeLanguage(preferences.getLocale());
+            }
+        });
     }
 
     private void initializeUI() {
@@ -142,6 +173,9 @@ public class PatchVisualizerApp extends Application {
         double width = oldScene.getWidth();
         double height = oldScene.getHeight();
 
+        // Reinitialize preferences UI
+        initializePreferences();
+
         BorderPane root = new BorderPane();
         MenuBar menuBar = createMenuBar();
         root.setTop(menuBar);
@@ -176,26 +210,11 @@ public class PatchVisualizerApp extends Application {
 
         fileMenu.getItems().addAll(importDiff, new SeparatorMenuItem(), exit);
 
-        // Language menu
-        Menu languageMenu = new Menu(bundle.getString("menu.language"));
-        ToggleGroup languageGroup = new ToggleGroup();
-
-        RadioMenuItem englishItem = new RadioMenuItem(bundle.getString("menu.language.english"));
-        englishItem.setToggleGroup(languageGroup);
-        englishItem.setSelected(currentLocale.getLanguage().equals("en"));
-        englishItem.setOnAction(e -> changeLanguage(Locale.ENGLISH));
-
-        RadioMenuItem chineseItem = new RadioMenuItem(bundle.getString("menu.language.chinese"));
-        chineseItem.setToggleGroup(languageGroup);
-        chineseItem.setSelected(currentLocale.getLanguage().equals("zh"));
-        chineseItem.setOnAction(e -> changeLanguage(Locale.CHINESE));
-
-        RadioMenuItem japaneseItem = new RadioMenuItem(bundle.getString("menu.language.japanese"));
-        japaneseItem.setToggleGroup(languageGroup);
-        japaneseItem.setSelected(currentLocale.getLanguage().equals("ja"));
-        japaneseItem.setOnAction(e -> changeLanguage(Locale.JAPANESE));
-
-        languageMenu.getItems().addAll(englishItem, chineseItem, japaneseItem);
+        // Preferences menu
+        Menu preferencesMenu = new Menu(bundle.getString("menu.preferences"));
+        MenuItem preferencesItem = new MenuItem(bundle.getString("menu.preferences"));
+        preferencesItem.setOnAction(e -> showPreferences());
+        preferencesMenu.getItems().add(preferencesItem);
 
         // Help menu
         Menu helpMenu = new Menu(bundle.getString("menu.help"));
@@ -203,8 +222,16 @@ public class PatchVisualizerApp extends Application {
         about.setOnAction(e -> showAboutDialog());
         helpMenu.getItems().add(about);
 
-        menuBar.getMenus().addAll(fileMenu, languageMenu, helpMenu);
+        menuBar.getMenus().addAll(fileMenu, preferencesMenu, helpMenu);
         return menuBar;
+    }
+
+    private void showPreferences() {
+        Stage preferencesStage = new Stage();
+        preferencesStage.setTitle(bundle.getString("preferences.title"));
+        Scene preferencesScene = new Scene(preferencesFx.getView());
+        preferencesStage.setScene(preferencesScene);
+        preferencesStage.show();
     }
 
     private Tab createCompareTab() {
@@ -298,7 +325,7 @@ public class PatchVisualizerApp extends Application {
         Label instructionLabel = new Label(bundle.getString("label.inputHelp"));
         instructionLabel.setStyle("-fx-text-fill: gray;");
 
-        // TextArea for diff/patch input
+        // TextArea for diff/patch input with optimizations
         TextArea diffTextArea = new TextArea();
         diffTextArea.setPromptText(bundle.getString("placeholder.diffText"));
         diffTextArea.setWrapText(false);
@@ -319,9 +346,14 @@ public class PatchVisualizerApp extends Application {
         visualizeButton.setOnAction(e -> {
             String diffText = diffTextArea.getText();
             if (diffText != null && !diffText.isEmpty()) {
-                List<String> lines = List.of(diffText.split("\n"));
-                String html = DiffHandleUtil.getDiffHtml(List.of(lines));
-                inputWebView.getEngine().loadContent(html);
+                // Check if text is large
+                if (diffText.length() > LARGE_FILE_THRESHOLD) {
+                    visualizeLargeTextAsync(diffText, inputWebView, content);
+                } else {
+                    List<String> lines = List.of(diffText.split("\n"));
+                    String html = DiffHandleUtil.getDiffHtml(List.of(lines));
+                    inputWebView.getEngine().loadContent(html);
+                }
             } else {
                 showAlert(Alert.AlertType.WARNING, bundle.getString("message.warning"),
                         bundle.getString("message.enterDiffText"));
@@ -339,21 +371,77 @@ public class PatchVisualizerApp extends Application {
         return tab;
     }
 
+    private void visualizeLargeTextAsync(String diffText, WebView webView, VBox container) {
+        // Show loading indicator
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        StackPane loadingPane = new StackPane(progressIndicator);
+        int webViewIndex = container.getChildren().indexOf(webView);
+        container.getChildren().set(webViewIndex, loadingPane);
+
+        // Process in background
+        Task<String> visualizeTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                List<String> lines = List.of(diffText.split("\n"));
+                return DiffHandleUtil.getDiffHtml(List.of(lines));
+            }
+        };
+
+        visualizeTask.setOnSucceeded(event -> {
+            String html = visualizeTask.getValue();
+            container.getChildren().set(webViewIndex, webView);
+            webView.getEngine().loadContent(html);
+        });
+
+        visualizeTask.setOnFailed(event -> {
+            container.getChildren().set(webViewIndex, webView);
+            Throwable e = visualizeTask.getException();
+            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                    e != null ? e.getMessage() : "Unknown error");
+        });
+
+        new Thread(visualizeTask).start();
+    }
+
     private void selectOriginalFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("fileChooser.selectOriginal"));
+        
+        // Set initial directory from preferences
+        String lastDir = preferences.getLastDirectory();
+        if (lastDir != null) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+        
         File file = fileChooser.showOpenDialog(primaryStage);
         if (file != null) {
             originalFileField.setText(file.getAbsolutePath());
+            // Save the directory for next time
+            preferences.setLastDirectory(file.getParent());
         }
     }
 
     private void selectRevisedFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("fileChooser.selectRevised"));
+        
+        // Set initial directory from preferences
+        String lastDir = preferences.getLastDirectory();
+        if (lastDir != null) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+        
         File file = fileChooser.showOpenDialog(primaryStage);
         if (file != null) {
             revisedFileField.setText(file.getAbsolutePath());
+            // Save the directory for next time
+            preferences.setLastDirectory(file.getParent());
         }
     }
 
@@ -389,30 +477,103 @@ public class PatchVisualizerApp extends Application {
         fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter(bundle.getString("fileChooser.filterDiff"), "*.diff", "*.patch"),
                 new FileChooser.ExtensionFilter(bundle.getString("fileChooser.filterAll"), "*.*"));
+        
+        // Set initial directory from preferences
+        String lastDir = preferences.getLastDirectory();
+        if (lastDir != null) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+        
         File file = fileChooser.showOpenDialog(primaryStage);
 
         if (file != null) {
-            try {
-                List<String> content = Files.readAllLines(file.toPath());
-                String html = DiffHandleUtil.getDiffHtml(List.of(content));
-
-                // Switch to import tab (index 0) and display
-                tabPane.getSelectionModel().select(0);
-                Tab importTab = tabPane.getTabs().get(0);
-                VBox vbox = (VBox) importTab.getContent();
-                WebView importWebView = (WebView) vbox.getChildren().stream()
-                        .filter(node -> node instanceof WebView)
-                        .findFirst()
-                        .orElse(null);
-
-                if (importWebView != null) {
-                    importWebView.getEngine().loadContent(html);
-                }
-            } catch (IOException e) {
-                showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
-                        MessageFormat.format(bundle.getString("message.failedRead"), e.getMessage()));
+            // Save the directory for next time
+            preferences.setLastDirectory(file.getParent());
+            
+            // Check file size
+            long fileSize = file.length();
+            if (fileSize > LARGE_FILE_THRESHOLD) {
+                // Load large files asynchronously
+                loadLargeFileAsync(file);
+            } else {
+                // Load small files synchronously
+                loadFile(file);
             }
         }
+    }
+
+    private void loadFile(File file) {
+        try {
+            List<String> content = Files.readAllLines(file.toPath());
+            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+
+            // Switch to import tab (index 0) and display
+            tabPane.getSelectionModel().select(0);
+            Tab importTab = tabPane.getTabs().get(0);
+            VBox vbox = (VBox) importTab.getContent();
+            WebView importWebView = (WebView) vbox.getChildren().stream()
+                    .filter(node -> node instanceof WebView)
+                    .findFirst()
+                    .orElse(null);
+
+            if (importWebView != null) {
+                importWebView.getEngine().loadContent(html);
+            }
+        } catch (IOException e) {
+            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                    MessageFormat.format(bundle.getString("message.failedRead"), e.getMessage()));
+        }
+    }
+
+    private void loadLargeFileAsync(File file) {
+        // Switch to import tab first
+        tabPane.getSelectionModel().select(0);
+        Tab importTab = tabPane.getTabs().get(0);
+        VBox vbox = (VBox) importTab.getContent();
+        
+        // Find the WebView
+        WebView importWebView = (WebView) vbox.getChildren().stream()
+                .filter(node -> node instanceof WebView)
+                .findFirst()
+                .orElse(null);
+
+        if (importWebView == null) {
+            return;
+        }
+
+        // Show loading indicator
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        StackPane loadingPane = new StackPane(progressIndicator);
+        int webViewIndex = vbox.getChildren().indexOf(importWebView);
+        vbox.getChildren().set(webViewIndex, loadingPane);
+
+        // Load file in background
+        Task<String> loadTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                List<String> content = Files.readAllLines(file.toPath());
+                return DiffHandleUtil.getDiffHtml(List.of(content));
+            }
+        };
+
+        loadTask.setOnSucceeded(event -> {
+            String html = loadTask.getValue();
+            vbox.getChildren().set(webViewIndex, importWebView);
+            importWebView.getEngine().loadContent(html);
+        });
+
+        loadTask.setOnFailed(event -> {
+            vbox.getChildren().set(webViewIndex, importWebView);
+            Throwable e = loadTask.getException();
+            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                    MessageFormat.format(bundle.getString("message.failedRead"), 
+                            e != null ? e.getMessage() : "Unknown error"));
+        });
+
+        new Thread(loadTask).start();
     }
 
     private void showAboutDialog() {
