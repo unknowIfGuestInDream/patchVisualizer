@@ -169,8 +169,7 @@ public class PatchVisualizerApp extends Application {
         ObjectProperty<String> languageSelection = new SimpleObjectProperty<>();
         
         // Set initial value based on current language
-        String currentDisplayName = langCodeToDisplayName(preferences.getLanguage());
-        languageSelection.set(currentDisplayName);
+        languageSelection.set(langCodeToDisplayName(preferences.getLanguage()));
         
         // Add listener to sync changes back to preferences
         languageSelection.addListener((obs, oldVal, newVal) -> {
