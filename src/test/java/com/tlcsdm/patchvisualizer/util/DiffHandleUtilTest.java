@@ -661,4 +661,111 @@ class DiffHandleUtilTest {
         assertTrue(content.contains("<!DOCTYPE html>"));
         assertTrue(content.length() > 10000); // Should be a large file
     }
+
+    // ==================== Binary Content Optimization Tests ====================
+
+    @Test
+    void testOptimizePatchContentWithBinaryMarker() {
+        List<String> patchContent = Arrays.asList(
+                "diff --git a/image.png b/image.png",
+                "GIT binary patch",
+                "literal 10000",
+                "base64encoded line 1",
+                "base64encoded line 2",
+                "base64encoded line 3",
+                "diff --git a/text.txt b/text.txt",
+                "--- a/text.txt",
+                "+++ b/text.txt",
+                "@@ -1,1 +1,1 @@",
+                "-old text",
+                "+new text"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchContent);
+
+        assertNotNull(result);
+        // Should include the binary marker
+        assertTrue(result.stream().anyMatch(s -> s.contains("GIT binary patch")));
+        // Should include the subsequent text file diff
+        assertTrue(result.stream().anyMatch(s -> s.contains("text.txt")));
+        assertTrue(result.stream().anyMatch(s -> s.contains("new text")));
+    }
+
+    @Test
+    void testOptimizePatchContentWithLargeBinarySection() {
+        List<String> patchContent = new ArrayList<>();
+        patchContent.add("diff --git a/large.bin b/large.bin");
+        patchContent.add("GIT binary patch");
+        patchContent.add("literal 100000");
+        
+        // Add 200 lines of fake binary data
+        for (int i = 0; i < 200; i++) {
+            patchContent.add("base64encodeddata" + i + "==");
+        }
+        
+        patchContent.add("diff --git a/next.txt b/next.txt");
+        patchContent.add("--- a/next.txt");
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchContent);
+
+        assertNotNull(result);
+        // Should truncate binary content
+        assertTrue(result.size() < patchContent.size());
+        // Should contain truncation message
+        assertTrue(result.stream().anyMatch(s -> s.contains("truncated for performance")));
+        // Should still include next file
+        assertTrue(result.stream().anyMatch(s -> s.contains("next.txt")));
+    }
+
+    @Test
+    void testOptimizePatchContentWithBinaryFilesDiffer() {
+        List<String> patchContent = Arrays.asList(
+                "diff --git a/doc.pdf b/doc.pdf",
+                "Binary files a/doc.pdf and b/doc.pdf differ",
+                "diff --git a/README.md b/README.md",
+                "--- a/README.md",
+                "+++ b/README.md",
+                "@@ -1,1 +1,2 @@",
+                " # Title",
+                "+New content"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchContent);
+
+        assertNotNull(result);
+        assertEquals(patchContent.size(), result.size());
+        // All content should be preserved for simple binary notation
+        assertTrue(result.stream().anyMatch(s -> s.contains("Binary files")));
+        assertTrue(result.stream().anyMatch(s -> s.contains("New content")));
+    }
+
+    @Test
+    void testOptimizePatchContentWithNullOrEmpty() {
+        assertNull(DiffHandleUtil.optimizePatchContent(null));
+        
+        List<String> empty = new ArrayList<>();
+        List<String> result = DiffHandleUtil.optimizePatchContent(empty);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testOptimizePatchContentWithoutBinaryContent() {
+        List<String> patchContent = Arrays.asList(
+                "diff --git a/file1.java b/file1.java",
+                "--- a/file1.java",
+                "+++ b/file1.java",
+                "@@ -1,3 +1,4 @@",
+                " public class File1 {",
+                "+    // New comment",
+                " }"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchContent);
+
+        assertNotNull(result);
+        // Should be unchanged since there's no binary content
+        assertEquals(patchContent.size(), result.size());
+        assertEquals(patchContent, result);
+    }
 }
