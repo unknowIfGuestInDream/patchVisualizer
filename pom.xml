@@ -179,10 +179,10 @@
             <version>${gson.version}</version>
         </dependency>
 
-        <!-- Ikonli Material2 Icons for PreferencesFX -->
+        <!-- Ikonli Material Icons for PreferencesFX (gmi-undo, gmi-redo, etc.) -->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
-            <artifactId>ikonli-material2-pack</artifactId>
+            <artifactId>ikonli-materialdesign-pack</artifactId>
             <version>${ikonli.version}</version>
         </dependency>
 

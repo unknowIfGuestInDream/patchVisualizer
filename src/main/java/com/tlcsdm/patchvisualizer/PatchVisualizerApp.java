@@ -251,9 +251,17 @@ public class PatchVisualizerApp extends Application {
     }
 
     private void showPreferences() {
+        // Create a new PreferencesFx instance for the dialog to avoid view reuse issues
+        PreferencesFx dialogPreferencesFx = PreferencesFx.of(AppPreferences.class,
+                Category.of(bundle.getString("preferences.category.general"),
+                        Setting.of(bundle.getString("preferences.language"),
+                                preferences.languageProperty())
+                )
+        );
+        
         Stage preferencesStage = new Stage();
         preferencesStage.setTitle(bundle.getString("preferences.title"));
-        Scene preferencesScene = new Scene(preferencesFx.getView());
+        Scene preferencesScene = new Scene(dialogPreferencesFx.getView());
         preferencesStage.setScene(preferencesScene);
         preferencesStage.show();
     }

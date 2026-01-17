@@ -15,7 +15,7 @@ module com.tlcsdm.patchvisualizer {
     requires java.prefs;
     requires org.kordamp.ikonli.core;
     requires org.kordamp.ikonli.javafx;
-    requires org.kordamp.ikonli.material2;
+    requires org.kordamp.ikonli.materialdesign;
 
     opens com.tlcsdm.patchvisualizer to javafx.fxml, com.dlsc.preferencesfx;
     opens com.tlcsdm.patchvisualizer.util to javafx.fxml;
