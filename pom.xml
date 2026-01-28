@@ -99,7 +99,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
-        <javafx.version>21.0.9</javafx.version>
+        <javafx.version>23.0.2</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
         <java.diff.utils.version>4.16</java.diff.utils.version>
         <preferencesfx.version>11.17.0</preferencesfx.version>
