@@ -17,6 +17,7 @@ module com.tlcsdm.patchvisualizer {
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.materialdesign;
     requires com.google.gson;
+    requires atlantafx.base;
 
     opens com.tlcsdm.patchvisualizer to javafx.fxml, com.dlsc.preferencesfx;
     opens com.tlcsdm.patchvisualizer.util to javafx.fxml;
