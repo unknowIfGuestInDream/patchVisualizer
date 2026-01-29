@@ -48,9 +48,11 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -453,6 +455,9 @@ public class PatchVisualizerApp extends Application {
         inputWebView.setId("inputWebView");
         VBox.setVgrow(inputWebView, Priority.ALWAYS);
 
+        // Setup drag-and-drop for TextArea
+        setupDragAndDrop(diffTextArea, inputWebView, content);
+
         visualizeButton.setOnAction(e -> {
             String diffText = diffTextArea.getText();
             if (diffText != null && !diffText.isEmpty()) {
@@ -479,6 +484,113 @@ public class PatchVisualizerApp extends Application {
 
         tab.setContent(content);
         return tab;
+    }
+
+    /**
+     * Setup drag-and-drop functionality for the TextArea.
+     * Supports dropping .diff and .patch files to load and visualize their content.
+     */
+    private void setupDragAndDrop(TextArea textArea, WebView webView, VBox container) {
+        textArea.setOnDragOver(event -> {
+            Dragboard db = event.getDragboard();
+            if (db.hasFiles()) {
+                // Accept only if at least one file has .diff or .patch extension
+                boolean hasValidFile = db.getFiles().stream()
+                        .anyMatch(file -> {
+                            String name = file.getName().toLowerCase();
+                            return name.endsWith(".diff") || name.endsWith(".patch");
+                        });
+                if (hasValidFile) {
+                    event.acceptTransferModes(TransferMode.COPY);
+                }
+            }
+            event.consume();
+        });
+
+        textArea.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                // Find the first valid .diff or .patch file
+                File file = db.getFiles().stream()
+                        .filter(f -> {
+                            String name = f.getName().toLowerCase();
+                            return name.endsWith(".diff") || name.endsWith(".patch");
+                        })
+                        .findFirst()
+                        .orElse(null);
+
+                if (file != null) {
+                    // Check file size before reading to avoid memory issues
+                    long fileSize = file.length();
+                    if (fileSize > LARGE_FILE_THRESHOLD) {
+                        // Load large files asynchronously
+                        loadDroppedFileAsync(file, textArea, webView, container);
+                        success = true;
+                    } else {
+                        // Load small files synchronously
+                        try {
+                            List<String> content = Files.readAllLines(file.toPath());
+                            // Optimize content to handle binary sections
+                            content = DiffHandleUtil.optimizePatchContent(content);
+                            String fileContent = String.join("\n", content);
+                            textArea.setText(fileContent);
+
+                            // Auto-visualize the content
+                            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+                            webView.getEngine().loadContent(html);
+                            success = true;
+                        } catch (IOException e) {
+                            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                                    MessageFormat.format(bundle.getString("message.failedRead"), e.getMessage()));
+                        }
+                    }
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+    }
+
+    /**
+     * Load a dropped file asynchronously for large files.
+     */
+    private void loadDroppedFileAsync(File file, TextArea textArea, WebView webView, VBox container) {
+        // Show loading indicator
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        StackPane loadingPane = new StackPane(progressIndicator);
+        int webViewIndex = container.getChildren().indexOf(webView);
+        container.getChildren().set(webViewIndex, loadingPane);
+
+        // Load file in background
+        Task<List<String>> loadTask = new Task<>() {
+            @Override
+            protected List<String> call() throws Exception {
+                List<String> content = Files.readAllLines(file.toPath());
+                // Optimize content to handle binary sections
+                return DiffHandleUtil.optimizePatchContent(content);
+            }
+        };
+
+        loadTask.setOnSucceeded(event -> {
+            List<String> content = loadTask.getValue();
+            String fileContent = String.join("\n", content);
+            textArea.setText(fileContent);
+
+            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+            container.getChildren().set(webViewIndex, webView);
+            webView.getEngine().loadContent(html);
+        });
+
+        loadTask.setOnFailed(event -> {
+            container.getChildren().set(webViewIndex, webView);
+            Throwable e = loadTask.getException();
+            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                    MessageFormat.format(bundle.getString("message.failedRead"),
+                            e != null ? e.getMessage() : "Unknown error"));
+        });
+
+        new Thread(loadTask).start();
     }
 
     private void visualizeLargeTextAsync(String diffText, WebView webView, VBox container) {
