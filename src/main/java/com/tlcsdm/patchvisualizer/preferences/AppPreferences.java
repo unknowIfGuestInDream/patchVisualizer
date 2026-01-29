@@ -40,7 +40,7 @@ public class AppPreferences {
     private static final String LAST_DIRECTORY_KEY = "lastDirectory";
     private static final String LANGUAGE_KEY = "language";
     private static final String THEME_KEY = "theme";
-    private static final String DEFAULT_THEME = "Default";
+    private static final String DEFAULT_THEME = "Primer Light";
     private static final Preferences prefs = Preferences.userNodeForPackage(AppPreferences.class);
 
     private static final AppPreferences INSTANCE = new AppPreferences();
