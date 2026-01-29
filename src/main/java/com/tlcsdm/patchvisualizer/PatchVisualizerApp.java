@@ -275,6 +275,31 @@ public class PatchVisualizerApp extends Application {
             default -> STYLESHEET_PRIMER_LIGHT;
         };
         Application.setUserAgentStylesheet(stylesheet);
+        refreshWebViewBackgrounds();
+    }
+
+    /**
+     * Refresh all WebView backgrounds to match the current theme.
+     * This is called when the theme changes to ensure empty WebViews display the correct background color.
+     */
+    private void refreshWebViewBackgrounds() {
+        if (tabPane == null) {
+            return;
+        }
+        String initialContent = getInitialWebViewContent();
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab.getContent() instanceof VBox vbox) {
+                for (javafx.scene.Node node : vbox.getChildren()) {
+                    if (node instanceof WebView wv) {
+                        // Only refresh if the WebView is showing initial/empty content
+                        String currentContent = (String) wv.getEngine().executeScript("document.body.innerHTML");
+                        if (currentContent == null || currentContent.isEmpty()) {
+                            wv.getEngine().loadContent(initialContent);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
