@@ -24,8 +24,16 @@
 
 package com.tlcsdm.patchvisualizer;
 
+import atlantafx.base.theme.CupertinoDark;
+import atlantafx.base.theme.CupertinoLight;
+import atlantafx.base.theme.Dracula;
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.NordLight;
+import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
 import com.dlsc.preferencesfx.PreferencesFx;
 import com.dlsc.preferencesfx.model.Category;
+import com.dlsc.preferencesfx.model.Group;
 import com.dlsc.preferencesfx.model.Setting;
 import com.tlcsdm.patchvisualizer.preferences.AppPreferences;
 import com.tlcsdm.patchvisualizer.util.DiffHandleUtil;
@@ -95,6 +103,24 @@ public class PatchVisualizerApp extends Application {
     private static final String LANG_CODE_CHINESE = "zh";
     private static final String LANG_CODE_JAPANESE = "ja";
 
+    // Theme name constants
+    private static final String THEME_PRIMER_LIGHT = "Primer Light";
+    private static final String THEME_PRIMER_DARK = "Primer Dark";
+    private static final String THEME_NORD_LIGHT = "Nord Light";
+    private static final String THEME_NORD_DARK = "Nord Dark";
+    private static final String THEME_CUPERTINO_LIGHT = "Cupertino Light";
+    private static final String THEME_CUPERTINO_DARK = "Cupertino Dark";
+    private static final String THEME_DRACULA = "Dracula";
+
+    // Cached theme stylesheets for efficiency
+    private static final String STYLESHEET_PRIMER_LIGHT = new PrimerLight().getUserAgentStylesheet();
+    private static final String STYLESHEET_PRIMER_DARK = new PrimerDark().getUserAgentStylesheet();
+    private static final String STYLESHEET_NORD_LIGHT = new NordLight().getUserAgentStylesheet();
+    private static final String STYLESHEET_NORD_DARK = new NordDark().getUserAgentStylesheet();
+    private static final String STYLESHEET_CUPERTINO_LIGHT = new CupertinoLight().getUserAgentStylesheet();
+    private static final String STYLESHEET_CUPERTINO_DARK = new CupertinoDark().getUserAgentStylesheet();
+    private static final String STYLESHEET_DRACULA = new Dracula().getUserAgentStylesheet();
+
     private WebView webView;
     private TabPane tabPane;
     private Stage primaryStage;
@@ -118,6 +144,9 @@ public class PatchVisualizerApp extends Application {
         // Synchronize system locale with saved preference
         Locale.setDefault(currentLocale);
         this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale);
+
+        // Apply saved theme on startup
+        applyTheme(preferences.getTheme());
 
         initializePreferences();
         initializeUI();
@@ -191,14 +220,58 @@ public class PatchVisualizerApp extends Application {
                 }
             }
         });
+
+        // Create observable list of theme names
+        ObservableList<String> themeOptions = FXCollections.observableArrayList(
+                THEME_PRIMER_LIGHT, THEME_PRIMER_DARK,
+                THEME_NORD_LIGHT, THEME_NORD_DARK,
+                THEME_CUPERTINO_LIGHT, THEME_CUPERTINO_DARK,
+                THEME_DRACULA
+        );
+
+        // Create object property for theme selection
+        ObjectProperty<String> themeSelection = new SimpleObjectProperty<>();
+
+        // Set initial value based on current theme
+        themeSelection.set(preferences.getTheme());
+
+        // Add listener to sync theme changes back to preferences and apply theme
+        themeSelection.addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.equals(oldVal)) {
+                preferences.setTheme(newVal);
+                applyTheme(newVal);
+            }
+        });
         
         return PreferencesFx.of(AppPreferences.class,
                 Category.of(bundle.getString("preferences.category.general"),
-                        Setting.of(bundle.getString("preferences.language"),
-                                languageOptions,
-                                languageSelection)
+                        Group.of(
+                                Setting.of(bundle.getString("preferences.language"),
+                                        languageOptions,
+                                        languageSelection),
+                                Setting.of(bundle.getString("preferences.theme"),
+                                        themeOptions,
+                                        themeSelection)
+                        )
                 )
         ).instantPersistent(false).saveSettings(true).buttonsVisibility(true);
+    }
+
+    /**
+     * Apply the selected theme to the application.
+     * @param themeName the name of the theme to apply
+     */
+    private void applyTheme(String themeName) {
+        String stylesheet = switch (themeName) {
+            case THEME_PRIMER_DARK -> STYLESHEET_PRIMER_DARK;
+            case THEME_NORD_LIGHT -> STYLESHEET_NORD_LIGHT;
+            case THEME_NORD_DARK -> STYLESHEET_NORD_DARK;
+            case THEME_CUPERTINO_LIGHT -> STYLESHEET_CUPERTINO_LIGHT;
+            case THEME_CUPERTINO_DARK -> STYLESHEET_CUPERTINO_DARK;
+            case THEME_DRACULA -> STYLESHEET_DRACULA;
+            default -> STYLESHEET_PRIMER_LIGHT;
+        };
+        Application.setUserAgentStylesheet(stylesheet);
     }
 
     private void initializeUI() {

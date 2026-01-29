@@ -39,17 +39,21 @@ public class AppPreferences {
 
     private static final String LAST_DIRECTORY_KEY = "lastDirectory";
     private static final String LANGUAGE_KEY = "language";
+    private static final String THEME_KEY = "theme";
+    private static final String DEFAULT_THEME = "Primer Light";
     private static final Preferences prefs = Preferences.userNodeForPackage(AppPreferences.class);
 
     private static final AppPreferences INSTANCE = new AppPreferences();
 
     private final StringProperty lastDirectory = new SimpleStringProperty();
     private final StringProperty language = new SimpleStringProperty();
+    private final StringProperty theme = new SimpleStringProperty();
 
     private AppPreferences() {
         // Load preferences
         lastDirectory.set(prefs.get(LAST_DIRECTORY_KEY, System.getProperty("user.home")));
         language.set(prefs.get(LANGUAGE_KEY, getDefaultLanguage()));
+        theme.set(prefs.get(THEME_KEY, DEFAULT_THEME));
 
         // Add listeners to save changes
         lastDirectory.addListener((obs, oldVal, newVal) -> {
@@ -61,6 +65,12 @@ public class AppPreferences {
         language.addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 prefs.put(LANGUAGE_KEY, newVal);
+            }
+        });
+
+        theme.addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                prefs.put(THEME_KEY, newVal);
             }
         });
     }
@@ -115,5 +125,17 @@ public class AppPreferences {
             case "ja" -> Locale.forLanguageTag("ja");
             default -> Locale.forLanguageTag("en");
         };
+    }
+
+    public String getTheme() {
+        return theme.get();
+    }
+
+    public void setTheme(String theme) {
+        this.theme.set(theme);
+    }
+
+    public StringProperty themeProperty() {
+        return theme;
     }
 }
