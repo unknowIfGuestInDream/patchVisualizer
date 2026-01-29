@@ -289,6 +289,22 @@ public class PatchVisualizerApp extends Application {
         };
     }
 
+    /**
+     * Get initial empty HTML content for WebView with proper theme styling.
+     * This ensures the WebView background matches the current theme before any diff content is loaded.
+     * @return HTML content with appropriate background color
+     */
+    private String getInitialWebViewContent() {
+        String bgColor = isDarkTheme() ? "#0d1117" : "#ffffff";
+        return String.format("""
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset="utf-8"/></head>
+                <body style="background-color: %s; margin: 0; padding: 0;"></body>
+                </html>
+                """, bgColor);
+    }
+
     private void initializeUI() {
         primaryStage.setTitle(bundle.getString("app.title"));
 
@@ -480,6 +496,7 @@ public class PatchVisualizerApp extends Application {
 
         // WebView for displaying diff
         webView = new WebView();
+        webView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(webView, Priority.ALWAYS);
 
         content.getChildren().addAll(fileGrid, buttonBox, webView);
@@ -506,6 +523,7 @@ public class PatchVisualizerApp extends Application {
         // WebView for displaying imported diff
         WebView importWebView = new WebView();
         importWebView.setId("importWebView");
+        importWebView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(importWebView, Priority.ALWAYS);
 
         content.getChildren().addAll(importBox, importWebView);
@@ -541,6 +559,7 @@ public class PatchVisualizerApp extends Application {
         // WebView for displaying the diff
         WebView inputWebView = new WebView();
         inputWebView.setId("inputWebView");
+        inputWebView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(inputWebView, Priority.ALWAYS);
 
         // Setup drag-and-drop for TextArea
@@ -565,7 +584,7 @@ public class PatchVisualizerApp extends Application {
 
         clearButton.setOnAction(e -> {
             diffTextArea.clear();
-            inputWebView.getEngine().loadContent("");
+            inputWebView.getEngine().loadContent(getInitialWebViewContent());
         });
 
         content.getChildren().addAll(instructionLabel, diffTextArea, buttonBox, inputWebView);
@@ -783,7 +802,7 @@ public class PatchVisualizerApp extends Application {
     private void clearComparison() {
         originalFileField.clear();
         revisedFileField.clear();
-        webView.getEngine().loadContent("");
+        webView.getEngine().loadContent(getInitialWebViewContent());
     }
 
     private void importDiffFile() {
