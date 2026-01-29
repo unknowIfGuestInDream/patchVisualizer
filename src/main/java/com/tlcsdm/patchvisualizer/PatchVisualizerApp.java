@@ -521,29 +521,76 @@ public class PatchVisualizerApp extends Application {
                         .orElse(null);
 
                 if (file != null) {
-                    try {
-                        // Read file content
-                        String fileContent = Files.readString(file.toPath());
-                        textArea.setText(fileContent);
-
-                        // Auto-visualize the content
-                        if (fileContent.length() > LARGE_FILE_THRESHOLD) {
-                            visualizeLargeTextAsync(fileContent, webView, container);
-                        } else {
-                            List<String> lines = List.of(fileContent.split("\n"));
-                            String html = DiffHandleUtil.getDiffHtml(List.of(lines));
-                            webView.getEngine().loadContent(html);
-                        }
+                    // Check file size before reading to avoid memory issues
+                    long fileSize = file.length();
+                    if (fileSize > LARGE_FILE_THRESHOLD) {
+                        // Load large files asynchronously
+                        loadDroppedFileAsync(file, textArea, webView, container);
                         success = true;
-                    } catch (IOException e) {
-                        showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
-                                MessageFormat.format(bundle.getString("message.failedRead"), e.getMessage()));
+                    } else {
+                        // Load small files synchronously
+                        try {
+                            List<String> content = Files.readAllLines(file.toPath());
+                            // Optimize content to handle binary sections
+                            content = DiffHandleUtil.optimizePatchContent(content);
+                            String fileContent = String.join("\n", content);
+                            textArea.setText(fileContent);
+
+                            // Auto-visualize the content
+                            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+                            webView.getEngine().loadContent(html);
+                            success = true;
+                        } catch (IOException e) {
+                            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                                    MessageFormat.format(bundle.getString("message.failedRead"), e.getMessage()));
+                        }
                     }
                 }
             }
             event.setDropCompleted(success);
             event.consume();
         });
+    }
+
+    /**
+     * Load a dropped file asynchronously for large files.
+     */
+    private void loadDroppedFileAsync(File file, TextArea textArea, WebView webView, VBox container) {
+        // Show loading indicator
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        StackPane loadingPane = new StackPane(progressIndicator);
+        int webViewIndex = container.getChildren().indexOf(webView);
+        container.getChildren().set(webViewIndex, loadingPane);
+
+        // Load file in background
+        Task<List<String>> loadTask = new Task<>() {
+            @Override
+            protected List<String> call() throws Exception {
+                List<String> content = Files.readAllLines(file.toPath());
+                // Optimize content to handle binary sections
+                return DiffHandleUtil.optimizePatchContent(content);
+            }
+        };
+
+        loadTask.setOnSucceeded(event -> {
+            List<String> content = loadTask.getValue();
+            String fileContent = String.join("\n", content);
+            textArea.setText(fileContent);
+
+            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+            container.getChildren().set(webViewIndex, webView);
+            webView.getEngine().loadContent(html);
+        });
+
+        loadTask.setOnFailed(event -> {
+            container.getChildren().set(webViewIndex, webView);
+            Throwable e = loadTask.getException();
+            showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
+                    MessageFormat.format(bundle.getString("message.failedRead"),
+                            e != null ? e.getMessage() : "Unknown error"));
+        });
+
+        new Thread(loadTask).start();
     }
 
     private void visualizeLargeTextAsync(String diffText, WebView webView, VBox container) {
