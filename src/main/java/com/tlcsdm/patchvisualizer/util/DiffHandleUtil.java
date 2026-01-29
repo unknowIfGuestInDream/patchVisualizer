@@ -217,7 +217,18 @@ public class DiffHandleUtil {
      * @param htmlPath   HTML output path
      */
     public static void generateDiffHtml(List<String> diffString, String htmlPath) {
-        generateDiffHtml(htmlPath, List.of(diffString));
+        generateDiffHtml(htmlPath, List.of(diffString), false);
+    }
+
+    /**
+     * Generate diff HTML content with dark mode support.
+     *
+     * @param diffString diff strings
+     * @param htmlPath   HTML output path
+     * @param darkMode   whether to use dark color scheme
+     */
+    public static void generateDiffHtml(List<String> diffString, String htmlPath, boolean darkMode) {
+        generateDiffHtml(htmlPath, List.of(diffString), darkMode);
     }
 
     /**
@@ -227,7 +238,18 @@ public class DiffHandleUtil {
      * @param diffStringList list of diff strings
      */
     public static void generateDiffHtml(String htmlPath, List<List<String>> diffStringList) {
-        String template = getDiffHtml(diffStringList);
+        generateDiffHtml(htmlPath, diffStringList, false);
+    }
+
+    /**
+     * Generate diff HTML content from multiple diffs with dark mode support.
+     *
+     * @param htmlPath       HTML output path
+     * @param diffStringList list of diff strings
+     * @param darkMode       whether to use dark color scheme
+     */
+    public static void generateDiffHtml(String htmlPath, List<List<String>> diffStringList, boolean darkMode) {
+        String template = getDiffHtml(diffStringList, darkMode);
         try (FileWriter f = new FileWriter(htmlPath);
              BufferedWriter buf = new BufferedWriter(f)) {
             buf.write(template);
@@ -243,6 +265,17 @@ public class DiffHandleUtil {
      * @return HTML content
      */
     public static String getDiffHtml(List<List<String>> diffStringList) {
+        return getDiffHtml(diffStringList, false);
+    }
+
+    /**
+     * Get diff HTML content with dark mode support.
+     *
+     * @param diffStringList list of diff strings
+     * @param darkMode       whether to use dark color scheme
+     * @return HTML content
+     */
+    public static String getDiffHtml(List<List<String>> diffStringList, boolean darkMode) {
         Map<String, Object> map = new HashMap<>(8);
         try {
             map.put("highlightCss", readStream(
@@ -254,6 +287,10 @@ public class DiffHandleUtil {
         } catch (IOException e) {
             throw new RuntimeException("Failed to load resources", e);
         }
+
+        // Set body class based on dark mode
+        String bodyClass = darkMode ? "d2h-dark-color-scheme" : "";
+        map.put("bodyClass", bodyClass);
 
         String template = """
                 <!DOCTYPE html>
@@ -268,6 +305,23 @@ public class DiffHandleUtil {
                 </style>
                 <style type="text/css">
                 {diff2htmlCss}
+                </style>
+                <style type="text/css">
+                /* Dark theme for syntax highlighting */
+                .d2h-dark-color-scheme .hljs{color:#c9d1d9;background:transparent}
+                .d2h-dark-color-scheme .hljs-comment,.d2h-dark-color-scheme .hljs-quote{color:#8b949e;font-style:italic}
+                .d2h-dark-color-scheme .hljs-keyword,.d2h-dark-color-scheme .hljs-selector-tag,.d2h-dark-color-scheme .hljs-subst{color:#ff7b72;font-weight:700}
+                .d2h-dark-color-scheme .hljs-literal,.d2h-dark-color-scheme .hljs-number,.d2h-dark-color-scheme .hljs-tag .hljs-attr,.d2h-dark-color-scheme .hljs-template-variable,.d2h-dark-color-scheme .hljs-variable{color:#79c0ff}
+                .d2h-dark-color-scheme .hljs-doctag,.d2h-dark-color-scheme .hljs-string{color:#a5d6ff}
+                .d2h-dark-color-scheme .hljs-section,.d2h-dark-color-scheme .hljs-selector-id,.d2h-dark-color-scheme .hljs-title{color:#d2a8ff;font-weight:700}
+                .d2h-dark-color-scheme .hljs-class .hljs-title,.d2h-dark-color-scheme .hljs-type{color:#ffa657;font-weight:700}
+                .d2h-dark-color-scheme .hljs-attribute,.d2h-dark-color-scheme .hljs-name,.d2h-dark-color-scheme .hljs-tag{color:#7ee787}
+                .d2h-dark-color-scheme .hljs-link,.d2h-dark-color-scheme .hljs-regexp{color:#7ee787}
+                .d2h-dark-color-scheme .hljs-bullet,.d2h-dark-color-scheme .hljs-symbol{color:#f0883e}
+                .d2h-dark-color-scheme .hljs-built_in,.d2h-dark-color-scheme .hljs-builtin-name{color:#ffa657}
+                .d2h-dark-color-scheme .hljs-meta{color:#8b949e;font-weight:700}
+                .d2h-dark-color-scheme .hljs-deletion{background:rgba(248,81,73,.4)}
+                .d2h-dark-color-scheme .hljs-addition{background:rgba(46,160,67,.4)}
                 </style>
                 <script type="text/javascript">
                 {diff2htmlJs}
@@ -295,7 +349,7 @@ public class DiffHandleUtil {
                     diff2htmlUi.highlightCode();
                   });
                 </script>
-                <body>
+                <body class="{bodyClass}">
                   <div id="myDiffElement"></div>
                 </body>
                 </html>
