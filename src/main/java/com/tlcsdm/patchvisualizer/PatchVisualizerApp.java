@@ -79,8 +79,10 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.MessageFormat;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 /**
@@ -132,6 +134,8 @@ public class PatchVisualizerApp extends Application {
     private AppPreferences preferences;
     private PreferencesFx preferencesFx;
     private boolean isChangingLanguage = false;
+    // Store current diff content for each WebView to enable theme refresh
+    private final Map<WebView, List<List<String>>> webViewDiffContent = new HashMap<>();
 
     public static void main(String[] args) {
         launch(args);
@@ -279,8 +283,9 @@ public class PatchVisualizerApp extends Application {
     }
 
     /**
-     * Refresh all WebView backgrounds to match the current theme.
-     * This is called when the theme changes to ensure empty WebViews display the correct background color.
+     * Refresh all WebView content to match the current theme.
+     * This is called when the theme changes to ensure both empty and rendered WebViews
+     * display the correct theme styling.
      */
     private void refreshWebViewBackgrounds() {
         if (tabPane == null) {
@@ -291,10 +296,18 @@ public class PatchVisualizerApp extends Application {
             if (tab.getContent() instanceof VBox vbox) {
                 for (javafx.scene.Node node : vbox.getChildren()) {
                     if (node instanceof WebView wv) {
-                        // Only refresh if the WebView is showing initial/empty content
-                        String currentContent = (String) wv.getEngine().executeScript("document.body.innerHTML");
-                        if (currentContent == null || currentContent.isEmpty()) {
-                            wv.getEngine().loadContent(initialContent);
+                        // Check if this WebView has stored diff content
+                        List<List<String>> diffContent = webViewDiffContent.get(wv);
+                        if (diffContent != null && !diffContent.isEmpty()) {
+                            // Re-render the diff content with the new theme
+                            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+                            wv.getEngine().loadContent(html);
+                        } else {
+                            // WebView is empty, refresh with initial content
+                            String currentContent = (String) wv.getEngine().executeScript("document.body.innerHTML");
+                            if (currentContent == null || currentContent.isEmpty()) {
+                                wv.getEngine().loadContent(initialContent);
+                            }
                         }
                     }
                 }
@@ -380,6 +393,9 @@ public class PatchVisualizerApp extends Application {
             // Synchronize system locale with the new locale
             Locale.setDefault(locale);
             this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
+
+            // Clear stored diff content since UI will be rebuilt
+            webViewDiffContent.clear();
 
             // Rebuild UI with new locale
             Scene oldScene = primaryStage.getScene();
@@ -598,7 +614,9 @@ public class PatchVisualizerApp extends Application {
                     visualizeLargeTextAsync(diffText, inputWebView, content);
                 } else {
                     List<String> lines = List.of(diffText.split("\n"));
-                    String html = DiffHandleUtil.getDiffHtml(List.of(lines), isDarkTheme());
+                    List<List<String>> diffContent = List.of(lines);
+                    String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+                    webViewDiffContent.put(inputWebView, diffContent);
                     inputWebView.getEngine().loadContent(html);
                 }
             } else {
@@ -609,6 +627,7 @@ public class PatchVisualizerApp extends Application {
 
         clearButton.setOnAction(e -> {
             diffTextArea.clear();
+            webViewDiffContent.remove(inputWebView);
             inputWebView.getEngine().loadContent(getInitialWebViewContent());
         });
 
@@ -662,14 +681,16 @@ public class PatchVisualizerApp extends Application {
                     } else {
                         // Load small files synchronously
                         try {
-                            List<String> content = Files.readAllLines(file.toPath());
+                            List<String> fileLines = Files.readAllLines(file.toPath());
                             // Optimize content to handle binary sections
-                            content = DiffHandleUtil.optimizePatchContent(content);
-                            String fileContent = String.join("\n", content);
+                            fileLines = DiffHandleUtil.optimizePatchContent(fileLines);
+                            String fileContent = String.join("\n", fileLines);
                             textArea.setText(fileContent);
 
                             // Auto-visualize the content
-                            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
+                            List<List<String>> diffContent = List.of(fileLines);
+                            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+                            webViewDiffContent.put(webView, diffContent);
                             webView.getEngine().loadContent(html);
                             success = true;
                         } catch (IOException e) {
@@ -709,13 +730,16 @@ public class PatchVisualizerApp extends Application {
             String fileContent = String.join("\n", content);
             textArea.setText(fileContent);
 
-            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
+            List<List<String>> diffContent = List.of(content);
+            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+            webViewDiffContent.put(webView, diffContent);
             container.getChildren().set(webViewIndex, webView);
             webView.getEngine().loadContent(html);
         });
 
         loadTask.setOnFailed(event -> {
             container.getChildren().set(webViewIndex, webView);
+            webViewDiffContent.remove(webView);
             Throwable e = loadTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     MessageFormat.format(bundle.getString("message.failedRead"),
@@ -732,28 +756,28 @@ public class PatchVisualizerApp extends Application {
         int webViewIndex = container.getChildren().indexOf(webView);
         container.getChildren().set(webViewIndex, loadingPane);
 
-        // Capture dark mode state before background task
-        final boolean darkMode = isDarkTheme();
-
-        // Process in background
-        Task<String> visualizeTask = new Task<>() {
+        // Process in background - return optimized lines for theme refresh support
+        Task<List<String>> visualizeTask = new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected List<String> call() throws Exception {
                 List<String> lines = List.of(diffText.split("\n"));
                 // Optimize content to handle binary sections
-                List<String> optimized = DiffHandleUtil.optimizePatchContent(lines);
-                return DiffHandleUtil.getDiffHtml(List.of(optimized), darkMode);
+                return DiffHandleUtil.optimizePatchContent(lines);
             }
         };
 
         visualizeTask.setOnSucceeded(event -> {
-            String html = visualizeTask.getValue();
+            List<String> optimizedLines = visualizeTask.getValue();
+            List<List<String>> diffContent = List.of(optimizedLines);
+            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+            webViewDiffContent.put(webView, diffContent);
             container.getChildren().set(webViewIndex, webView);
             webView.getEngine().loadContent(html);
         });
 
         visualizeTask.setOnFailed(event -> {
             container.getChildren().set(webViewIndex, webView);
+            webViewDiffContent.remove(webView);
             Throwable e = visualizeTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     e != null ? e.getMessage() : "Unknown error");
@@ -816,7 +840,9 @@ public class PatchVisualizerApp extends Application {
 
         try {
             List<String> diffResult = DiffHandleUtil.diffString(originalPath, revisedPath);
-            String html = DiffHandleUtil.getDiffHtml(List.of(diffResult), isDarkTheme());
+            List<List<String>> diffContent = List.of(diffResult);
+            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+            webViewDiffContent.put(webView, diffContent);
             webView.getEngine().loadContent(html);
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
@@ -827,6 +853,7 @@ public class PatchVisualizerApp extends Application {
     private void clearComparison() {
         originalFileField.clear();
         revisedFileField.clear();
+        webViewDiffContent.remove(webView);
         webView.getEngine().loadContent(getInitialWebViewContent());
     }
 
@@ -869,7 +896,8 @@ public class PatchVisualizerApp extends Application {
             List<String> content = Files.readAllLines(file.toPath());
             // Optimize content to handle binary sections
             content = DiffHandleUtil.optimizePatchContent(content);
-            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
+            List<List<String>> diffContent = List.of(content);
+            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
 
             // Switch to import tab (index 0) and display
             tabPane.getSelectionModel().select(0);
@@ -881,6 +909,7 @@ public class PatchVisualizerApp extends Application {
                     .orElse(null);
 
             if (importWebView != null) {
+                webViewDiffContent.put(importWebView, diffContent);
                 importWebView.getEngine().loadContent(html);
             }
         } catch (IOException e) {
@@ -911,28 +940,28 @@ public class PatchVisualizerApp extends Application {
         int webViewIndex = vbox.getChildren().indexOf(importWebView);
         vbox.getChildren().set(webViewIndex, loadingPane);
 
-        // Capture dark mode state before background task
-        final boolean darkMode = isDarkTheme();
-
-        // Load file in background
-        Task<String> loadTask = new Task<>() {
+        // Load file in background - return content for theme refresh support
+        Task<List<String>> loadTask = new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected List<String> call() throws Exception {
                 List<String> content = Files.readAllLines(file.toPath());
                 // Optimize content to handle binary sections
-                content = DiffHandleUtil.optimizePatchContent(content);
-                return DiffHandleUtil.getDiffHtml(List.of(content), darkMode);
+                return DiffHandleUtil.optimizePatchContent(content);
             }
         };
 
         loadTask.setOnSucceeded(event -> {
-            String html = loadTask.getValue();
+            List<String> content = loadTask.getValue();
+            List<List<String>> diffContent = List.of(content);
+            String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
+            webViewDiffContent.put(importWebView, diffContent);
             vbox.getChildren().set(webViewIndex, importWebView);
             importWebView.getEngine().loadContent(html);
         });
 
         loadTask.setOnFailed(event -> {
             vbox.getChildren().set(webViewIndex, importWebView);
+            webViewDiffContent.remove(importWebView);
             Throwable e = loadTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     MessageFormat.format(bundle.getString("message.failedRead"), 
