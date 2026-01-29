@@ -303,11 +303,8 @@ public class PatchVisualizerApp extends Application {
                             String html = DiffHandleUtil.getDiffHtml(diffContent, isDarkTheme());
                             wv.getEngine().loadContent(html);
                         } else {
-                            // WebView is empty, refresh with initial content
-                            String currentContent = (String) wv.getEngine().executeScript("document.body.innerHTML");
-                            if (currentContent == null || currentContent.isEmpty()) {
-                                wv.getEngine().loadContent(initialContent);
-                            }
+                            // WebView has no diff content, refresh with initial content for new theme
+                            wv.getEngine().loadContent(initialContent);
                         }
                     }
                 }
