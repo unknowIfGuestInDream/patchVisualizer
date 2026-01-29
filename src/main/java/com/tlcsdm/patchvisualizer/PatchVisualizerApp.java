@@ -394,6 +394,9 @@ public class PatchVisualizerApp extends Application {
             Locale.setDefault(locale);
             this.bundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
 
+            // Clear stored diff content since UI will be rebuilt
+            webViewDiffContent.clear();
+
             // Rebuild UI with new locale
             Scene oldScene = primaryStage.getScene();
             double width = oldScene.getWidth();
@@ -736,6 +739,7 @@ public class PatchVisualizerApp extends Application {
 
         loadTask.setOnFailed(event -> {
             container.getChildren().set(webViewIndex, webView);
+            webViewDiffContent.remove(webView);
             Throwable e = loadTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     MessageFormat.format(bundle.getString("message.failedRead"),
@@ -773,6 +777,7 @@ public class PatchVisualizerApp extends Application {
 
         visualizeTask.setOnFailed(event -> {
             container.getChildren().set(webViewIndex, webView);
+            webViewDiffContent.remove(webView);
             Throwable e = visualizeTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     e != null ? e.getMessage() : "Unknown error");
@@ -956,6 +961,7 @@ public class PatchVisualizerApp extends Application {
 
         loadTask.setOnFailed(event -> {
             vbox.getChildren().set(webViewIndex, importWebView);
+            webViewDiffContent.remove(importWebView);
             Throwable e = loadTask.getException();
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
                     MessageFormat.format(bundle.getString("message.failedRead"), 
