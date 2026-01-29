@@ -275,6 +275,31 @@ public class PatchVisualizerApp extends Application {
             default -> STYLESHEET_PRIMER_LIGHT;
         };
         Application.setUserAgentStylesheet(stylesheet);
+        refreshWebViewBackgrounds();
+    }
+
+    /**
+     * Refresh all WebView backgrounds to match the current theme.
+     * This is called when the theme changes to ensure empty WebViews display the correct background color.
+     */
+    private void refreshWebViewBackgrounds() {
+        if (tabPane == null) {
+            return;
+        }
+        String initialContent = getInitialWebViewContent();
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab.getContent() instanceof VBox vbox) {
+                for (javafx.scene.Node node : vbox.getChildren()) {
+                    if (node instanceof WebView wv) {
+                        // Only refresh if the WebView is showing initial/empty content
+                        String currentContent = (String) wv.getEngine().executeScript("document.body.innerHTML");
+                        if (currentContent == null || currentContent.isEmpty()) {
+                            wv.getEngine().loadContent(initialContent);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -287,6 +312,22 @@ public class PatchVisualizerApp extends Application {
             case THEME_PRIMER_DARK, THEME_NORD_DARK, THEME_CUPERTINO_DARK, THEME_DRACULA -> true;
             default -> false;
         };
+    }
+
+    /**
+     * Get initial empty HTML content for WebView with proper theme styling.
+     * This ensures the WebView background matches the current theme before any diff content is loaded.
+     * @return HTML content with appropriate background color
+     */
+    private String getInitialWebViewContent() {
+        String bgColor = isDarkTheme() ? "#0d1117" : "#ffffff";
+        return String.format("""
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset="utf-8"/></head>
+                <body style="background-color: %s; margin: 0; padding: 0;"></body>
+                </html>
+                """, bgColor);
     }
 
     private void initializeUI() {
@@ -480,6 +521,7 @@ public class PatchVisualizerApp extends Application {
 
         // WebView for displaying diff
         webView = new WebView();
+        webView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(webView, Priority.ALWAYS);
 
         content.getChildren().addAll(fileGrid, buttonBox, webView);
@@ -506,6 +548,7 @@ public class PatchVisualizerApp extends Application {
         // WebView for displaying imported diff
         WebView importWebView = new WebView();
         importWebView.setId("importWebView");
+        importWebView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(importWebView, Priority.ALWAYS);
 
         content.getChildren().addAll(importBox, importWebView);
@@ -541,6 +584,7 @@ public class PatchVisualizerApp extends Application {
         // WebView for displaying the diff
         WebView inputWebView = new WebView();
         inputWebView.setId("inputWebView");
+        inputWebView.getEngine().loadContent(getInitialWebViewContent());
         VBox.setVgrow(inputWebView, Priority.ALWAYS);
 
         // Setup drag-and-drop for TextArea
@@ -565,7 +609,7 @@ public class PatchVisualizerApp extends Application {
 
         clearButton.setOnAction(e -> {
             diffTextArea.clear();
-            inputWebView.getEngine().loadContent("");
+            inputWebView.getEngine().loadContent(getInitialWebViewContent());
         });
 
         content.getChildren().addAll(instructionLabel, diffTextArea, buttonBox, inputWebView);
@@ -783,7 +827,7 @@ public class PatchVisualizerApp extends Application {
     private void clearComparison() {
         originalFileField.clear();
         revisedFileField.clear();
-        webView.getEngine().loadContent("");
+        webView.getEngine().loadContent(getInitialWebViewContent());
     }
 
     private void importDiffFile() {
