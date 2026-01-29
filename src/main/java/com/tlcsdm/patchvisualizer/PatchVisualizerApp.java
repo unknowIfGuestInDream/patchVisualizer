@@ -104,6 +104,7 @@ public class PatchVisualizerApp extends Application {
     private static final String LANG_CODE_JAPANESE = "ja";
 
     // Theme name constants
+    private static final String THEME_DEFAULT = "Default";
     private static final String THEME_PRIMER_LIGHT = "Primer Light";
     private static final String THEME_PRIMER_DARK = "Primer Dark";
     private static final String THEME_NORD_LIGHT = "Nord Light";
@@ -223,6 +224,7 @@ public class PatchVisualizerApp extends Application {
 
         // Create observable list of theme names
         ObservableList<String> themeOptions = FXCollections.observableArrayList(
+                THEME_DEFAULT,
                 THEME_PRIMER_LIGHT, THEME_PRIMER_DARK,
                 THEME_NORD_LIGHT, THEME_NORD_DARK,
                 THEME_CUPERTINO_LIGHT, THEME_CUPERTINO_DARK,
@@ -263,6 +265,7 @@ public class PatchVisualizerApp extends Application {
      */
     private void applyTheme(String themeName) {
         String stylesheet = switch (themeName) {
+            case THEME_DEFAULT -> null;  // Use native JavaFX style
             case THEME_PRIMER_DARK -> STYLESHEET_PRIMER_DARK;
             case THEME_NORD_LIGHT -> STYLESHEET_NORD_LIGHT;
             case THEME_NORD_DARK -> STYLESHEET_NORD_DARK;
@@ -272,6 +275,18 @@ public class PatchVisualizerApp extends Application {
             default -> STYLESHEET_PRIMER_LIGHT;
         };
         Application.setUserAgentStylesheet(stylesheet);
+    }
+
+    /**
+     * Check if the current theme is a dark theme.
+     * @return true if the current theme is dark, false otherwise
+     */
+    private boolean isDarkTheme() {
+        String themeName = preferences.getTheme();
+        return switch (themeName) {
+            case THEME_PRIMER_DARK, THEME_NORD_DARK, THEME_CUPERTINO_DARK, THEME_DRACULA -> true;
+            default -> false;
+        };
     }
 
     private void initializeUI() {
@@ -539,7 +554,7 @@ public class PatchVisualizerApp extends Application {
                     visualizeLargeTextAsync(diffText, inputWebView, content);
                 } else {
                     List<String> lines = List.of(diffText.split("\n"));
-                    String html = DiffHandleUtil.getDiffHtml(List.of(lines));
+                    String html = DiffHandleUtil.getDiffHtml(List.of(lines), isDarkTheme());
                     inputWebView.getEngine().loadContent(html);
                 }
             } else {
@@ -610,7 +625,7 @@ public class PatchVisualizerApp extends Application {
                             textArea.setText(fileContent);
 
                             // Auto-visualize the content
-                            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+                            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
                             webView.getEngine().loadContent(html);
                             success = true;
                         } catch (IOException e) {
@@ -650,7 +665,7 @@ public class PatchVisualizerApp extends Application {
             String fileContent = String.join("\n", content);
             textArea.setText(fileContent);
 
-            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
             container.getChildren().set(webViewIndex, webView);
             webView.getEngine().loadContent(html);
         });
@@ -673,6 +688,9 @@ public class PatchVisualizerApp extends Application {
         int webViewIndex = container.getChildren().indexOf(webView);
         container.getChildren().set(webViewIndex, loadingPane);
 
+        // Capture dark mode state before background task
+        final boolean darkMode = isDarkTheme();
+
         // Process in background
         Task<String> visualizeTask = new Task<>() {
             @Override
@@ -680,7 +698,7 @@ public class PatchVisualizerApp extends Application {
                 List<String> lines = List.of(diffText.split("\n"));
                 // Optimize content to handle binary sections
                 List<String> optimized = DiffHandleUtil.optimizePatchContent(lines);
-                return DiffHandleUtil.getDiffHtml(List.of(optimized));
+                return DiffHandleUtil.getDiffHtml(List.of(optimized), darkMode);
             }
         };
 
@@ -754,7 +772,7 @@ public class PatchVisualizerApp extends Application {
 
         try {
             List<String> diffResult = DiffHandleUtil.diffString(originalPath, revisedPath);
-            String html = DiffHandleUtil.getDiffHtml(List.of(diffResult));
+            String html = DiffHandleUtil.getDiffHtml(List.of(diffResult), isDarkTheme());
             webView.getEngine().loadContent(html);
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, bundle.getString("message.error"),
@@ -807,7 +825,7 @@ public class PatchVisualizerApp extends Application {
             List<String> content = Files.readAllLines(file.toPath());
             // Optimize content to handle binary sections
             content = DiffHandleUtil.optimizePatchContent(content);
-            String html = DiffHandleUtil.getDiffHtml(List.of(content));
+            String html = DiffHandleUtil.getDiffHtml(List.of(content), isDarkTheme());
 
             // Switch to import tab (index 0) and display
             tabPane.getSelectionModel().select(0);
@@ -849,6 +867,9 @@ public class PatchVisualizerApp extends Application {
         int webViewIndex = vbox.getChildren().indexOf(importWebView);
         vbox.getChildren().set(webViewIndex, loadingPane);
 
+        // Capture dark mode state before background task
+        final boolean darkMode = isDarkTheme();
+
         // Load file in background
         Task<String> loadTask = new Task<>() {
             @Override
@@ -856,7 +877,7 @@ public class PatchVisualizerApp extends Application {
                 List<String> content = Files.readAllLines(file.toPath());
                 // Optimize content to handle binary sections
                 content = DiffHandleUtil.optimizePatchContent(content);
-                return DiffHandleUtil.getDiffHtml(List.of(content));
+                return DiffHandleUtil.getDiffHtml(List.of(content), darkMode);
             }
         };
 
