@@ -217,7 +217,18 @@ public class DiffHandleUtil {
      * @param htmlPath   HTML output path
      */
     public static void generateDiffHtml(List<String> diffString, String htmlPath) {
-        generateDiffHtml(htmlPath, List.of(diffString));
+        generateDiffHtml(htmlPath, List.of(diffString), false);
+    }
+
+    /**
+     * Generate diff HTML content with dark mode support.
+     *
+     * @param diffString diff strings
+     * @param htmlPath   HTML output path
+     * @param darkMode   whether to use dark color scheme
+     */
+    public static void generateDiffHtml(List<String> diffString, String htmlPath, boolean darkMode) {
+        generateDiffHtml(htmlPath, List.of(diffString), darkMode);
     }
 
     /**
@@ -227,7 +238,18 @@ public class DiffHandleUtil {
      * @param diffStringList list of diff strings
      */
     public static void generateDiffHtml(String htmlPath, List<List<String>> diffStringList) {
-        String template = getDiffHtml(diffStringList);
+        generateDiffHtml(htmlPath, diffStringList, false);
+    }
+
+    /**
+     * Generate diff HTML content from multiple diffs with dark mode support.
+     *
+     * @param htmlPath       HTML output path
+     * @param diffStringList list of diff strings
+     * @param darkMode       whether to use dark color scheme
+     */
+    public static void generateDiffHtml(String htmlPath, List<List<String>> diffStringList, boolean darkMode) {
+        String template = getDiffHtml(diffStringList, darkMode);
         try (FileWriter f = new FileWriter(htmlPath);
              BufferedWriter buf = new BufferedWriter(f)) {
             buf.write(template);

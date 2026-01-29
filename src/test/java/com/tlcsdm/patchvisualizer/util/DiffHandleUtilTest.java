@@ -768,4 +768,71 @@ class DiffHandleUtilTest {
         assertEquals(patchContent.size(), result.size());
         assertEquals(patchContent, result);
     }
+
+    // ==================== Dark Mode Tests ====================
+
+    @Test
+    void testGetDiffHtmlWithDarkMode() {
+        List<String> diff = Arrays.asList(
+                "--- original.txt",
+                "+++ revised.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3"
+        );
+
+        String html = DiffHandleUtil.getDiffHtml(List.of(diff), true);
+
+        assertNotNull(html);
+        assertTrue(html.contains("<!DOCTYPE html>"));
+        assertTrue(html.contains("Diff2HtmlUI"));
+        // Should include dark mode class on body
+        assertTrue(html.contains("class=\"d2h-dark-color-scheme\""));
+        // Should include dark mode syntax highlighting CSS
+        assertTrue(html.contains(".d2h-dark-color-scheme .hljs"));
+    }
+
+    @Test
+    void testGetDiffHtmlWithLightMode() {
+        List<String> diff = Arrays.asList(
+                "--- original.txt",
+                "+++ revised.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3"
+        );
+
+        String html = DiffHandleUtil.getDiffHtml(List.of(diff), false);
+
+        assertNotNull(html);
+        assertTrue(html.contains("<!DOCTYPE html>"));
+        assertTrue(html.contains("Diff2HtmlUI"));
+        // Should not include dark mode class on body (empty class)
+        assertTrue(html.contains("class=\"\""));
+    }
+
+    @Test
+    void testGenerateDiffHtmlWithDarkMode() throws IOException {
+        Path htmlFile = tempDir.resolve("dark_output.html");
+        List<String> diff = Arrays.asList(
+                "--- original.txt",
+                "+++ revised.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3"
+        );
+
+        DiffHandleUtil.generateDiffHtml(diff, htmlFile.toAbsolutePath().toString(), true);
+
+        assertTrue(Files.exists(htmlFile));
+        String content = Files.readString(htmlFile);
+        assertTrue(content.contains("<!DOCTYPE html>"));
+        assertTrue(content.contains("class=\"d2h-dark-color-scheme\""));
+    }
 }
