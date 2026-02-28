@@ -140,8 +140,9 @@ public class DiffHandleUtil {
     }
 
     /**
-     * Filter and optimize patch content by truncating binary sections.
-     * This prevents large binary patches from freezing the UI.
+     * Filter and optimize patch content by truncating binary sections
+     * and stripping git format-patch metadata (email headers, scissors line,
+     * trailing git version signature).
      *
      * @param patchContent the original patch content
      * @return optimized patch content
@@ -154,11 +155,14 @@ public class DiffHandleUtil {
             return patchContent;
         }
 
+        // Strip format-patch metadata before processing
+        List<String> content = stripFormatPatchMetadata(patchContent);
+
         List<String> optimized = new ArrayList<>();
         boolean inBinarySection = false;
         int binaryLineCount = 0;
 
-        for (String line : patchContent) {
+        for (String line : content) {
             // Detect binary section start
             if (!inBinarySection && (line.contains(BINARY_MARKER) || line.contains(BINARY_DIFF_MARKER))) {
                 inBinarySection = true;
@@ -192,6 +196,53 @@ public class DiffHandleUtil {
         }
 
         return optimized;
+    }
+
+    /**
+     * Strip git format-patch metadata from patch content.
+     * Removes email headers and scissors line before the first "diff --git" line,
+     * and removes trailing git version signature ("-- " or "---" followed by version).
+     *
+     * @param patchContent the original patch content
+     * @return content with format-patch metadata removed
+     */
+    static List<String> stripFormatPatchMetadata(List<String> patchContent) {
+        if (patchContent == null || patchContent.isEmpty()) {
+            return patchContent;
+        }
+
+        List<String> result = patchContent;
+
+        // Strip email headers: remove everything before the first "diff --git" line
+        int diffStartIndex = -1;
+        for (int i = 0; i < result.size(); i++) {
+            if (result.get(i).startsWith("diff --git")) {
+                diffStartIndex = i;
+                break;
+            }
+        }
+        if (diffStartIndex > 0) {
+            result = new ArrayList<>(result.subList(diffStartIndex, result.size()));
+        }
+
+        // Strip trailing git version signature
+        // Format-patch ends with "-- " (or "---") followed by a version string like "2.34.1"
+        int size = result.size();
+        // Skip trailing empty lines
+        int endIndex = size;
+        while (endIndex > 0 && result.get(endIndex - 1).trim().isEmpty()) {
+            endIndex--;
+        }
+        if (endIndex >= 2) {
+            String lastNonEmpty = result.get(endIndex - 1).trim();
+            String beforeLast = result.get(endIndex - 2);
+            if (lastNonEmpty.matches("\\d+\\.\\d+.*")
+                    && ("-- ".equals(beforeLast) || "---".equals(beforeLast) || "--".equals(beforeLast.trim()))) {
+                result = new ArrayList<>(result.subList(0, endIndex - 2));
+            }
+        }
+
+        return result;
     }
 
     /**
