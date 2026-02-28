@@ -15,6 +15,7 @@ module com.tlcsdm.patchvisualizer {
     requires java.prefs;
     requires org.kordamp.ikonli.core;
     requires org.kordamp.ikonli.javafx;
+    requires org.kordamp.ikonli.material;
     requires org.kordamp.ikonli.materialdesign;
     requires com.google.gson;
     requires atlantafx.base;
