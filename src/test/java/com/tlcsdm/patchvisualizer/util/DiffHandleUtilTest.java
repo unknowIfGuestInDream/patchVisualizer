@@ -835,4 +835,192 @@ class DiffHandleUtilTest {
         assertTrue(content.contains("<!DOCTYPE html>"));
         assertTrue(content.contains("class=\"d2h-dark-color-scheme\""));
     }
+
+    // ==================== Format-Patch Metadata Tests ====================
+
+    @Test
+    void testOptimizePatchContentStripsFormatPatchHeaders() {
+        List<String> formatPatchContent = Arrays.asList(
+                "From abc123 Mon Sep 17 00:00:00 2001",
+                "From: Author <author@example.com>",
+                "Date: Tue, 1 Jan 2024 12:00:00 +0000",
+                "Subject: [PATCH] Fix something",
+                "",
+                "Commit message body.",
+                "---",
+                " file.txt | 2 +-",
+                " 1 file changed, 1 insertion(+), 1 deletion(-)",
+                "",
+                "diff --git a/file.txt b/file.txt",
+                "index abc123..def456 100644",
+                "--- a/file.txt",
+                "+++ b/file.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3",
+                "-- ",
+                "2.34.1"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(formatPatchContent);
+
+        assertNotNull(result);
+        // Should start with "diff --git" (email headers stripped)
+        assertTrue(result.get(0).startsWith("diff --git"));
+        // Should not contain email headers
+        assertFalse(result.stream().anyMatch(s -> s.startsWith("From ")));
+        assertFalse(result.stream().anyMatch(s -> s.startsWith("Subject:")));
+        // Should not contain the scissors line before diff
+        assertFalse(result.stream().anyMatch(s -> s.equals("---")));
+        // Should not contain git version
+        assertFalse(result.stream().anyMatch(s -> s.trim().equals("2.34.1")));
+        // Should still contain actual diff content
+        assertTrue(result.stream().anyMatch(s -> s.contains("file.txt")));
+        assertTrue(result.stream().anyMatch(s -> s.contains("line 2 modified")));
+    }
+
+    @Test
+    void testOptimizePatchContentStripsTrailingGitVersion() {
+        List<String> patchWithVersion = Arrays.asList(
+                "diff --git a/file.txt b/file.txt",
+                "--- a/file.txt",
+                "+++ b/file.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3",
+                "-- ",
+                "2.53.0"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchWithVersion);
+
+        assertNotNull(result);
+        assertEquals(8, result.size());
+        assertFalse(result.stream().anyMatch(s -> s.trim().equals("2.53.0")));
+        assertFalse(result.stream().anyMatch(s -> s.equals("-- ")));
+        assertTrue(result.stream().anyMatch(s -> s.contains("line 2 modified")));
+    }
+
+    @Test
+    void testOptimizePatchContentStripsTrailingVersionWithThreeDashes() {
+        // Some environments may use "---" instead of "-- "
+        List<String> patchWithVersion = Arrays.asList(
+                "diff --git a/file.txt b/file.txt",
+                "--- a/file.txt",
+                "+++ b/file.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3",
+                "---",
+                "2.34.1"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchWithVersion);
+
+        assertNotNull(result);
+        assertEquals(8, result.size());
+        assertFalse(result.stream().anyMatch(s -> s.trim().equals("2.34.1")));
+    }
+
+    @Test
+    void testOptimizePatchContentStripsTrailingVersionWithEmptyLines() {
+        List<String> patchWithVersion = Arrays.asList(
+                "diff --git a/file.txt b/file.txt",
+                "--- a/file.txt",
+                "+++ b/file.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3",
+                "-- ",
+                "2.34.1",
+                "",
+                ""
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(patchWithVersion);
+
+        assertNotNull(result);
+        assertEquals(8, result.size());
+        assertFalse(result.stream().anyMatch(s -> s.trim().equals("2.34.1")));
+    }
+
+    @Test
+    void testOptimizePatchContentPreservesPlainDiff() {
+        // Regular diff without format-patch metadata should be unchanged
+        List<String> plainDiff = Arrays.asList(
+                "diff --git a/file.txt b/file.txt",
+                "--- a/file.txt",
+                "+++ b/file.txt",
+                "@@ -1,3 +1,3 @@",
+                " line 1",
+                "-line 2",
+                "+line 2 modified",
+                " line 3"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(plainDiff);
+
+        assertNotNull(result);
+        assertEquals(plainDiff.size(), result.size());
+        assertEquals(plainDiff, result);
+    }
+
+    @Test
+    void testStripFormatPatchMetadataWithNullOrEmpty() {
+        assertNull(DiffHandleUtil.stripFormatPatchMetadata(null));
+        List<String> empty = new ArrayList<>();
+        List<String> result = DiffHandleUtil.stripFormatPatchMetadata(empty);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testStripFormatPatchMetadataMultipleFiles() {
+        List<String> formatPatch = Arrays.asList(
+                "From abc123 Mon Sep 17 00:00:00 2001",
+                "From: Author <author@example.com>",
+                "Date: Tue, 1 Jan 2024 12:00:00 +0000",
+                "Subject: [PATCH] Multi-file change",
+                "",
+                "---",
+                " file1.txt | 1 +",
+                " file2.txt | 1 -",
+                "",
+                "diff --git a/file1.txt b/file1.txt",
+                "--- a/file1.txt",
+                "+++ b/file1.txt",
+                "@@ -1,1 +1,2 @@",
+                " line 1",
+                "+new line",
+                "diff --git a/file2.txt b/file2.txt",
+                "--- a/file2.txt",
+                "+++ b/file2.txt",
+                "@@ -1,2 +1,1 @@",
+                " line 1",
+                "-deleted line",
+                "-- ",
+                "2.47.0"
+        );
+
+        List<String> result = DiffHandleUtil.optimizePatchContent(formatPatch);
+
+        assertNotNull(result);
+        // Should start with diff --git
+        assertTrue(result.get(0).startsWith("diff --git"));
+        // Should contain both files
+        assertTrue(result.stream().anyMatch(s -> s.contains("file1.txt")));
+        assertTrue(result.stream().anyMatch(s -> s.contains("file2.txt")));
+        // Should not contain git version
+        assertFalse(result.stream().anyMatch(s -> s.trim().equals("2.47.0")));
+        // Should not contain email headers
+        assertFalse(result.stream().anyMatch(s -> s.startsWith("From:")));
+    }
 }
