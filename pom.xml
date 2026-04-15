@@ -102,7 +102,7 @@
         <javafx.version>21.0.10</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
         <java.diff.utils.version>4.16</java.diff.utils.version>
-        <preferencesfx.version>11.17.0</preferencesfx.version>
+        <preferencesfx.version>11.19.0</preferencesfx.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <logback-classic.version>1.5.32</logback-classic.version>
         <gson.version>2.13.2</gson.version>
