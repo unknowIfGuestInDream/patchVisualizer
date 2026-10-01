@@ -121,7 +121,7 @@ jobs:
 
           mkdir -p dist staging
           cp "$jar" README.md LICENSE staging/
-          cp scripts/mac/* staging/
+          cp scripts/mac/start.sh staging/
 
       - name: Download JRE (macOS)
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'release') && runner.os == 'macOS'
