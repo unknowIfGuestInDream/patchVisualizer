@@ -38,7 +38,7 @@ case "$(uname -m)" in
     ;;
 esac
 macApi="https://api.adoptium.net/v3/binary/version/jdk-${jreVersion//+/%2B}/mac/${macArch}/jre/hotspot/normal/eclipse?project=jdk"
-wget -c ${macApi} --no-check-certificate -O jre.tar.gz
+wget -c ${macApi} -O jre.tar.gz
 tar -xzf jre.tar.gz
 extractedDir="$(find . -maxdepth 1 -type d -name "jdk-${jreVersion}-jre*" | head -n1)"
 if [ -z "${extractedDir}" ]; then

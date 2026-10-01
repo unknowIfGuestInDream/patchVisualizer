@@ -30,7 +30,12 @@
 # see https://api.adoptium.net/q/swagger-ui/#/Binary/getBinaryByVersion
 jreVersion='25.0.4+7'
 linuxApi="https://api.adoptium.net/v3/binary/version/jdk-${jreVersion//+/%2B}/linux/x64/jre/hotspot/normal/eclipse?project=jdk"
-wget -c ${linuxApi} --no-check-certificate -O jre.tar.gz
+wget -c ${linuxApi} -O jre.tar.gz
 tar -xzf jre.tar.gz
-mv "jdk-${jreVersion}-jre" jre
+extractedDir="$(find . -maxdepth 1 -type d -name "jdk-${jreVersion}-jre*" | head -n1)"
+if [ -z "${extractedDir}" ]; then
+  echo "Failed to locate extracted Linux JRE directory" >&2
+  exit 1
+fi
+mv "${extractedDir}" jre
 rm -f jre.tar.gz
