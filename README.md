@@ -39,7 +39,7 @@ A JavaFX application for visualizing diff and patch files, supporting both Windo
 
 ## Requirements
 
-- Java 21 or higher
+- Java 25 or higher
 - Maven 3.6 or higher
 
 ## Build

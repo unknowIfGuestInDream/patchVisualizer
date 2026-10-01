@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 # Copyright (c) 2026 unknowIfGuestInDream.
 # All rights reserved.
@@ -26,10 +28,22 @@
 #
 
 # see https://api.adoptium.net/q/swagger-ui/#/Binary/getBinaryByVersion
-$jreVersion = '25.0.4+7'
-$escapedJreVersion = $jreVersion -replace '\+', '%2B'
-$winApi = "https://api.adoptium.net/v3/binary/version/jdk-$escapedJreVersion/windows/x64/jre/hotspot/normal/eclipse?project=jdk"
-Invoke-WebRequest -Uri $winApi -OutFile 'jre.zip'
-Expand-Archive -Path 'jre.zip' -DestinationPath '.' -Force
-Rename-Item -Path "jdk-$jreVersion-jre" -NewName 'jre'
-Remove-Item -Path 'jre.zip' -Force
+jreVersion='25.0.4+7'
+case "$(uname -m)" in
+  arm64|aarch64) macArch='aarch64' ;;
+  x86_64) macArch='x64' ;;
+  *)
+    echo "Unsupported macOS architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+macApi="https://api.adoptium.net/v3/binary/version/jdk-${jreVersion//+/%2B}/mac/${macArch}/jre/hotspot/normal/eclipse?project=jdk"
+wget -c ${macApi} --no-check-certificate -O jre.tar.gz
+tar -xzf jre.tar.gz
+extractedDir="$(find . -maxdepth 1 -type d -name "jdk-${jreVersion}-jre*" | head -n1)"
+if [ -z "${extractedDir}" ]; then
+  echo "Failed to locate extracted macOS JRE directory" >&2
+  exit 1
+fi
+mv "${extractedDir}/Contents/Home" jre
+rm -rf "${extractedDir}" jre.tar.gz
