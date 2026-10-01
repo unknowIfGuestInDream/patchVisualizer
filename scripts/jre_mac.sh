@@ -45,5 +45,5 @@ if [ -z "${extractedDir}" ]; then
   echo "Failed to locate extracted macOS JRE directory" >&2
   exit 1
 fi
-mv "${extractedDir}/Contents/Home" jre
-rm -rf "${extractedDir}" jre.tar.gz
+mv "${extractedDir}" jre
+rm -f jre.tar.gz
