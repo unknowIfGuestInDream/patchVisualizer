@@ -54,7 +54,7 @@ mvn javafx:run
 
 ## Dependencies
 
-- [JavaFX 21](https://openjfx.io/) - UI framework
+- [JavaFX 25](https://openjfx.io/) - UI framework
 - [java-diff-utils](https://github.com/java-diff-utils/java-diff-utils) - Diff generation library
 - [PreferencesFX](https://github.com/dlemmermann/PreferencesFX) - Preferences management framework
 - [diff2html](https://diff2html.xyz/) - HTML diff visualization (offline resources included)
