@@ -230,6 +230,14 @@
         </dependency>
     </dependencies>
 
+    <!-- Resolve JavaFX platform-classified artifacts even when a mirrored central repo is incomplete. -->
+    <repositories>
+        <repository>
+            <id>openjfx-direct</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
+
     <build>
         <finalName>patchvisualizer</finalName>
         <plugins>
